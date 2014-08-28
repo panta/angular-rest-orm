@@ -1,7 +1,7 @@
 {
   "name": "angular-rest-orm",
   "version": "0.1.0",
-  "main": "./dist/angular-rest-orm.min.js",
+  "main": "dist/angular-rest-orm.min.js",
   "authors": [
     "Marco Pantaleoni <marco.pantaleoni@gmail.com>"
   ],
@@ -19,6 +19,7 @@
   },
   "ignore": [
     "**/.*",
+    "bower.json",
     "Gruntfile.js",
     "coffeelint.json",
     "env.sh",
