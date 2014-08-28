@@ -68,19 +68,20 @@ module.exports = function (grunt) {
           "package.json", 
           "bower.json"
         ],
+        updateConfigs: ['pkg'],
         commit: false,
         commitMessage: 'chore(release): v%VERSION%',
         commitFiles: [
           "package.json", 
-          "client/bower.json"
+          "bower.json"
         ],
         createTag: false,
-        tagName: 'v%VERSION%',
-        tagMessage: 'Version %VERSION%',
+        tagName: '%VERSION%',
+        tagMessage: 'Release %VERSION% version',
         push: false,
         pushTo: 'origin'
       }
-    },    
+    },
 
     /**
      * The directories to delete when `grunt clean` is executed.
