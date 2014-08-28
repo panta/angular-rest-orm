@@ -25,11 +25,12 @@ book.$promise.then ->
 book = Book.Get(2)
 book.$promise.then ->
   $log.info "Got book with id 2"
+  $log.info "Title: #{book.title}"
 
 books = Book.All()
 books.$promise.then ->
   for book in books
-    ...
+    $log.info "#{book.$id}: #{book.title}"
 ```
 
 ## Features
