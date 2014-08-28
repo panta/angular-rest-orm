@@ -1,0 +1,38 @@
+{
+  "name": "angular-rest-orm",
+  "version": "0.1.0",
+  "main": "./dist/angular-rest-orm.min.js",
+  "authors": [
+    "Marco Pantaleoni <marco.pantaleoni@gmail.com>"
+  ],
+  "description": "Angular ORM for HTTP REST APIs",
+  "keywords": [
+    "angular", "ORM", "REST", "RESTful",
+    "HTTP", "OOP", "nesting", "model", "resource",
+    "service"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/panta/angular-rest-orm",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/panta/angular-rest-orm.git"
+  },
+  "ignore": [
+    "**/.*",
+    "Gruntfile.js",
+    "coffeelint.json",
+    "env.sh",
+    "karma.conf.js",
+    "package.json",
+    "build",
+    "karma",
+    "src",
+    "test",
+    "vendor"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "angular": "^1.2",
+    "angular-mocks": "^1.2"
+  }
+}
