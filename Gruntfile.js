@@ -83,6 +83,31 @@ module.exports = function (grunt) {
       }
     },
 
+    gitcommit: {
+      bump: {
+        options: {
+          message: 'chore(release): v<%= pkg.version %>'
+        },
+        files: {
+          src: [
+            "package.json",
+            "bower.json",
+            '<%= dist_dir %>/<%= pkg.name %>.js',
+            '<%= dist_dir %>/<%= pkg.name %>.min.js'
+          ]
+        }
+      }
+    },
+
+    gittag: {
+      bump: {
+        options: {
+          tag: '<%= pkg.version %>',
+          message: 'Release <%= pkg.version %> version'
+        }
+      }
+    },
+
     /**
      * The directories to delete when `grunt clean` is executed.
      */
@@ -385,6 +410,7 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-coffeelint');
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-ng-annotate');
+  grunt.loadNpmTasks('grunt-git');
 
   /**
    * In order to make it safe to just compile or copy *only* what was changed,
@@ -409,6 +435,11 @@ module.exports = function (grunt) {
   // dist task: get the library ready for distribution
   grunt.registerTask( 'dist', [
     'ngAnnotate', 'concat:dist_js', 'concat:dist_min_js', 'uglify'
+  ]);
+
+  // release task: build, dist, bump, commit & tag
+  grunt.registerTask( 'release', [
+    'build', 'dist', 'bump', 'gitcommit:bump', 'gittag:bump'
   ]);
 
   /**
