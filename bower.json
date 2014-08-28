@@ -1,6 +1,6 @@
 {
   "name": "angular-rest-orm",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "main": "dist/angular-rest-orm.min.js",
   "authors": [
     "Marco Pantaleoni <marco.pantaleoni@gmail.com>"
