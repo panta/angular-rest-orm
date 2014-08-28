@@ -109,7 +109,12 @@ module.exports = function (grunt) {
     },
 
     gitpush: {
-      bump: {
+      bump_branch: {
+        options: {
+          remote: 'origin'
+        }
+      },
+      bump_tags: {
         options: {
           remote: 'origin',
           tags: true
@@ -448,7 +453,7 @@ module.exports = function (grunt) {
 
   // release task: build, dist, bump, commit & tag
   grunt.registerTask( 'release', [
-    'bump', 'build', 'dist', 'gitcommit:bump', 'gittag:bump', 'gitpush:bump'
+    'bump', 'build', 'dist', 'gitcommit:bump', 'gittag:bump', 'gitpush:bump_branch', 'gitpush:bump_tags'
   ]);
 
   /**
