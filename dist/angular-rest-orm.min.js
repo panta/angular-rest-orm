@@ -1,6 +1,6 @@
 /**
  * Angular ORM for HTTP REST APIs
- * @version angular-rest-orm - v0.2.1 - 2014-08-28
+ * @version angular-rest-orm - v0.2.3 - 2014-08-28
  * @link https://github.com/panta/angular-rest-orm
  * @author Marco Pantaleoni <marco.pantaleoni@gmail.com>
  *
