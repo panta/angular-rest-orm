@@ -448,7 +448,7 @@ module.exports = function (grunt) {
 
   // release task: build, dist, bump, commit & tag
   grunt.registerTask( 'release', [
-    'build', 'dist', 'bump', 'gitcommit:bump', 'gittag:bump', 'gitpush:bump'
+    'bump', 'build', 'dist', 'gitcommit:bump', 'gittag:bump', 'gitpush:bump'
   ]);
 
   /**
