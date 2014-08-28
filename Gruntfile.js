@@ -108,6 +108,15 @@ module.exports = function (grunt) {
       }
     },
 
+    gitpush: {
+      bump: {
+        options: {
+          remote: 'origin',
+          tags: true
+        }
+      }
+    },
+
     /**
      * The directories to delete when `grunt clean` is executed.
      */
@@ -439,7 +448,7 @@ module.exports = function (grunt) {
 
   // release task: build, dist, bump, commit & tag
   grunt.registerTask( 'release', [
-    'build', 'dist', 'bump', 'gitcommit:bump', 'gittag:bump'
+    'build', 'dist', 'bump', 'gitcommit:bump', 'gittag:bump', 'gitpush:bump'
   ]);
 
   /**
