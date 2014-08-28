@@ -125,7 +125,7 @@ module.exports = function (grunt) {
           '<%= build_dir %>/src/**/*.js', 
           'module.suffix' 
         ],
-        dest: '<%= dist_dir %>/<%= pkg.name %>-<%= pkg.version %>.js'
+        dest: '<%= dist_dir %>/<%= pkg.name %>.js'
       },
       /**
        * The `dist_min_js` target is the concatenation of our application source
