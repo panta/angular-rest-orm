@@ -3,7 +3,7 @@ Angular REST ORM
 
 Angular REST ORM provides an easy to use, Active Record-like, ORM for your RESTful APIs.
 
-It's meant to be more natural and fun to use than `$service`.
+It's meant to be more natural and fun to use than `$resource`.
 
 It supports advanced features, such as collections and relations.
 
