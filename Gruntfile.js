@@ -141,7 +141,7 @@ module.exports = function (grunt) {
           '<%= build_dir %>/src/**/*.js', 
           'module.suffix' 
         ],
-        dest: '<%= dist_dir %>/<%= pkg.name %>-<%= pkg.version %>.min.js'
+        dest: '<%= dist_dir %>/<%= pkg.name %>.min.js'
       }
     },
 
