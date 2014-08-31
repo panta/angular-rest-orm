@@ -1,13 +1,14 @@
 /**
  * Angular ORM for HTTP REST APIs
- * @version angular-rest-orm - v0.2.4 - 2014-08-28
+ * @version angular-rest-orm - v0.2.5 - 2014-08-31
  * @link https://github.com/panta/angular-rest-orm
  * @author Marco Pantaleoni <marco.pantaleoni@gmail.com>
  *
  * Copyright (c) 2014 Marco Pantaleoni <marco.pantaleoni@gmail.com>
  * Licensed under the MIT License, http://opensource.org/licenses/MIT
  */
-var __hasProp = {}.hasOwnProperty;
+var __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
 angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http, $q) {
   var Resource;
@@ -23,6 +24,64 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
     Resource.references = [];
 
     Resource.m2m = [];
+
+    Resource.include = function(obj) {
+      var key, value, _ref;
+      if (!obj) {
+        throw new Error('include(obj) requires obj');
+      }
+      for (key in obj) {
+        value = obj[key];
+        if (key !== 'included' && key !== 'extended') {
+          this.prototype[key] = value;
+        }
+      }
+      if ((_ref = obj.included) != null) {
+        _ref.apply(this);
+      }
+      return this;
+    };
+
+    Resource.extend = function(obj) {
+      var key, value, _ref;
+      if (!obj) {
+        throw new Error('extend(obj) requires obj');
+      }
+      for (key in obj) {
+        value = obj[key];
+        if (key !== 'included' && key !== 'extended') {
+          this[key] = value;
+        }
+      }
+      if ((_ref = obj.extended) != null) {
+        _ref.apply(this);
+      }
+      return this;
+    };
+
+    Resource.Subclass = function(instances, statics) {
+      var Result;
+      Result = (function(_super) {
+        __extends(Result, _super);
+
+        function Result() {
+          return Result.__super__.constructor.apply(this, arguments);
+        }
+
+        return Result;
+
+      })(this);
+      if (instances) {
+        Result.include(instances);
+      }
+      if (statics) {
+        Result.extend(statics);
+      }
+      Result.prototype.$super = function(method) {
+        return this.constructor.__super__[method];
+      };
+      return Result;
+    };
 
     function Resource(data, opts) {
       if (data == null) {
@@ -41,14 +100,10 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
       this.$promiseDirect = null;
       this._setupPromises();
       this._fetchRelations();
-      if (this.$initialize != null) {
-        this.$initialize();
+      if (typeof this.$initialize === "function") {
+        this.$initialize.apply(this, arguments);
       }
     }
-
-    Resource.prototype.$initialize = function() {
-      return this;
-    };
 
     Resource.Create = function(data) {
       var item;
