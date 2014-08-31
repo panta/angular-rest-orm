@@ -15,8 +15,8 @@ module.exports = function ( karma ) {
       'src/**/*.coffee',
 
       // tests
-      //{ pattern: 'test/**/*-spec.js', included: false },
-      { pattern: 'test/**/*-spec.coffee', included: true }
+      { pattern: 'test/**/*-spec.coffee', included: true },
+      { pattern: 'test/**/*-spec.js', included: true }
     ],
     exclude: [
     ],

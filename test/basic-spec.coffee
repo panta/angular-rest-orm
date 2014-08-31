@@ -21,6 +21,8 @@ describe "ORM basic functionality:", ->
         author: null
         tags: []
 
+      $initialize: ->
+        @abc = 42
     #return
   )
 
@@ -31,9 +33,11 @@ describe "ORM basic functionality:", ->
       expect(book instanceof Book).toBeTruthy()
       return
     it "calls instance $initialize", ->
-      spyOn(Book.prototype, '$initialize')  #.andCallThrough()
+      spyOn(Book.prototype, '$initialize').andCallThrough()
       book = new Book()
       expect(Book.prototype.$initialize).toHaveBeenCalled()
+      expect(book.abc).toBeDefined()
+      expect(book.abc).toEqual(42)
       return
     return
     it "should return a properfly formed instance", ->

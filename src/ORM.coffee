@@ -9,6 +9,27 @@ angular.module("restOrm", [
     @references: []
     @m2m: []
 
+    @include: (obj) ->
+      throw new Error('include(obj) requires obj') unless obj
+      for key, value of obj when key not in ['included', 'extended']
+        @::[key] = value
+      obj.included?.apply(this)
+      this
+
+    @extend: (obj) ->
+      throw new Error('extend(obj) requires obj') unless obj
+      for key, value of obj when key not in ['included', 'extended']
+        @[key] = value
+      obj.extended?.apply(this)
+      this
+
+    @Subclass: (instances, statics) ->
+      class Result extends this
+      Result.include(instances) if instances
+      Result.extend(statics) if statics
+      Result::$super = (method) -> @constructor.__super__[method]
+      Result
+
     constructor: (data=null, opts={}) ->
       @$meta =
         persisted: false
@@ -26,11 +47,7 @@ angular.module("restOrm", [
       @_setupPromises()
       @_fetchRelations()
 
-      if @$initialize?
-        @$initialize()
-
-    $initialize: ->
-      @
+      @$initialize?(arguments...)
 
     @Create: (data=null) ->
       data = data or @defaults
