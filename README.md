@@ -68,11 +68,11 @@ books.$promise.then ->
 
 ## Features
 
-* Usable easily both from **JavaScript** and CoffeeScript.
+* Usable **easily** both from **JavaScript** and **CoffeeScript**.
 * Object oriented ORM, with an **Active Record like feeling**.
 * Like with `$resource`, **usable models and collections are returned immediately**.
 * In addition, **models and collection also provide promises** to handle completion of transactions.
-* **Directly usable in `$routeProvides.resolve`**: this means that the real, complete, models and collections will be injected into the controller when ready.
+* **Directly usable in `$routeProvides.resolve`**: this means that the models and collections will be injected into the controller when ready and complete.
 * **Support for one-to-many and many-to-many relations.**
 * **Automatic fetch of relations.**
 * **Array-based collections.**
