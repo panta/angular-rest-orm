@@ -10,6 +10,8 @@ angular.module("restOrm", [
     @m2m: []
     @headers: {}
 
+    @transformResponse: null
+
     @include: (obj) ->
       throw new Error('include(obj) requires obj') unless obj
       for key, value of obj when key not in ['included', 'extended']
@@ -58,22 +60,30 @@ angular.module("restOrm", [
 
     @Get: (id) ->
       item = new @()
+      url = @_GetURLBase() + "#{id}"
       $http(
         method: "GET"
-        url: @_GetURLBase() + "#{id}"
+        url: url
         headers: @_BuildHeaders 'Get', 'GET', null
-      ).then (result) ->
-        item._fromRemote(result.data)
+      ).then (response) =>
+        response = @_TransformResponse response.data, {
+          what: 'Get', method: 'GET', url: url, response: response
+        }
+        item._fromRemote(response.data)
       item
 
     @All: () ->
       collection = @_MakeCollection()
+      url = @_GetURLBase()
       $http(
         method: "GET"
-        url: @_GetURLBase()
+        url: url
         headers: @_BuildHeaders 'All', 'GET', null
-      ).then (result) =>
-        for values in result.data
+      ).then (response) =>
+        response = @_TransformResponse response.data, {
+          what: 'All', method: 'GET', url: url, response: response
+        }
+        for values in response.data
           collection.push @_MakeInstanceFromRemote(values)
         collection.$_getPromiseForItems().then ->
           collection.$meta.deferred.resolve(collection)
@@ -88,8 +98,11 @@ angular.module("restOrm", [
         method: "GET"
         url: url
         headers: @_BuildHeaders 'Search', 'GET', null
-      ).then (result) =>
-        @_MakeInstanceFromRemote(values) for values in result.data
+      ).then (response) =>
+        response = @_TransformResponse response.data, {
+          what: 'Search', method: 'GET', url: url, response: response
+        }
+        @_MakeInstanceFromRemote(values) for values in response.data
 
     $save: ->
       data = @_toObject()
@@ -112,8 +125,11 @@ angular.module("restOrm", [
         data: data
         cache: false
         headers: headers
-      ).then (result) =>
-        @_fromRemote(result.data)
+      ).then (response) =>
+        response = @_transformResponse response.data, {
+          what: '$save', method: method, url: url, response: response
+        }
+        @_fromRemote(response.data)
       @
 
     # -----------------------------------------------------------------
@@ -174,6 +190,16 @@ angular.module("restOrm", [
           processHeaderSource dst_headers, @headers
         return dst_headers
       return {}
+
+    @_TransformResponse: (data, info) ->
+      info.klass = @
+      if @transformResponse? and angular.isFunction(@transformResponse)
+        return @transformResponse.call(@, data, info)
+      return info.response
+
+    _transformResponse: (data, info) ->
+      info.instance = @
+      @constructor._TransformResponse data, info
 
     _buildHeaders: (what=null, method=null) ->
       @constructor._BuildHeaders what, method, @
