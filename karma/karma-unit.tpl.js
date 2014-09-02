@@ -20,16 +20,40 @@ module.exports = function ( karma ) {
     ],
     exclude: [
     ],
+
+    // frameworks to use
+    // available frameworks: https://npmjs.org/browse/keyword/karma-adapter
     frameworks: [ 'jasmine' ],
-    plugins: [ 'karma-jasmine', 'karma-firefox-launcher', 'karma-phantomjs-launcher', 'karma-coffee-preprocessor' ],
+
+    plugins: [ 'karma-jasmine', 'karma-firefox-launcher', 'karma-phantomjs-launcher', 'karma-coverage', 'karma-coffee-preprocessor' ],
     preprocessors: {
-      '**/*.coffee': 'coffee',
+      // source files, that we wanna generate coverage for
+      // do not include tests or libraries
+      // (these files will be instrumented by Istanbul via Ibrik)
+      'src/*.coffee': 'coverage',
+
+      // project files will already be converted to
+      // JavaScript via coverage preprocessor.
+      // Thus, we'll have to limit the CoffeeScript preprocessor
+      // to uncovered files (test files).
+      'test/**/*.coffee': 'coffee'
     },
 
-    /**
-     * How to report, by default.
-     */
-    reporters: 'dots',
+    // test results reporter to use
+    // possible values: 'dots', 'progress'
+    // available reporters: https://npmjs.org/browse/keyword/karma-reporter
+    reporters: ['dots', 'coverage'],
+
+    coffeePreprocessor: {
+      options: {
+        sourceMap: true
+      }
+    },
+
+    coverageReporter : {
+      type: 'html',
+      dir: 'coverage/'
+    },
 
     /**
      * On which port should the browser connect, on which port is the test runner
