@@ -79,6 +79,7 @@ books.$promise.then ->
 * **`id` name mapping** (primary key).
 * Base URL configuration.
 * **Custom headers** easily generated via objects and/or functions.
+* **Special responses** easily pre-processed via custom handler.
 * **Fully tested.**
 * **Bower support.**
 
