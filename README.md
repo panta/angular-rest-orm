@@ -78,6 +78,7 @@ books.$promise.then ->
 * **Array-based collections.**
 * **`id` name mapping** (primary key).
 * Base URL configuration.
+* **Custom headers** easily generated via objects and/or functions.
 * **Fully tested.**
 * **Bower support.**
 
