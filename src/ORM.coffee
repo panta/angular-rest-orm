@@ -8,6 +8,7 @@ angular.module("restOrm", [
     @defaults: {}
     @references: []
     @m2m: []
+    @headers: {}
 
     @include: (obj) ->
       throw new Error('include(obj) requires obj') unless obj
@@ -60,6 +61,7 @@ angular.module("restOrm", [
       $http(
         method: "GET"
         url: @_GetURLBase() + "#{id}"
+        headers: @_BuildHeaders 'Get', 'GET', null
       ).then (result) ->
         item._fromRemote(result.data)
       item
@@ -69,6 +71,7 @@ angular.module("restOrm", [
       $http(
         method: "GET"
         url: @_GetURLBase()
+        headers: @_BuildHeaders 'All', 'GET', null
       ).then (result) =>
         for values in result.data
           collection.push @_MakeInstanceFromRemote(values)
@@ -84,6 +87,7 @@ angular.module("restOrm", [
       $http(
         method: "GET"
         url: url
+        headers: @_BuildHeaders 'Search', 'GET', null
       ).then (result) =>
         @_MakeInstanceFromRemote(values) for values in result.data
 
@@ -101,11 +105,13 @@ angular.module("restOrm", [
       # TODO: check deferred/promise re-setup
       @_setupPromises()
 
+      headers = @_buildHeaders '$save', method
       $http(
         method: method
         url: url
         data: data
         cache: false
+        headers: headers
       ).then (result) =>
         @_fromRemote(result.data)
       @
@@ -139,6 +145,38 @@ angular.module("restOrm", [
 
     @_GetURLBase: ->
       "#{@urlPrefix}#{@urlEndpoint}"
+
+    @_BuildHeaders: (what=null, method=null, instance=null) ->
+      if not @headers?
+        return {}
+      if angular.isFunction(@headers)
+        return @headers.call(@, {klass: @, what: what, method: method, instance: instance})
+      else if angular.isObject(@headers)
+        processHeaderSource = (dst, src) =>
+          for name, value of src
+            if angular.isFunction(value)
+              dst_value = value.call(@, {klass: @, what: what, method: method, instance: instance})
+            else
+              dst_value = value
+            if dst_value != null
+              dst[name] = dst_value
+          dst
+
+        dst_headers = {}
+        if ('common' of @headers) or (what? and (what of @headers)) or (method? and (method of @headers))
+          if 'common' of @headers
+            processHeaderSource dst_headers, @headers.common
+          if what? and (what of @headers)
+            processHeaderSource dst_headers, @headers[what]
+          if method? and (method of @headers)
+            processHeaderSource dst_headers, @headers[method]
+        else
+          processHeaderSource dst_headers, @headers
+        return dst_headers
+      return {}
+
+    _buildHeaders: (what=null, method=null) ->
+      @constructor._BuildHeaders what, method, @
 
     _setupPromises: ->
       @$meta.$ref_promise = null
