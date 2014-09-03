@@ -106,13 +106,13 @@ angular.module("restOrm", [
 
     $save: ->
       data = @_toObject()
-      if @$meta.persisted and @id?
+      if @$meta.persisted and @$id?
         method = 'PUT'
-        url = @_getURLBase() + "#{@id}"
+        url = @_getURLBase() + "#{@$id}"
       else
         method = 'POST'
-        if 'id' of data
-          delete data['id']
+        if @constructor.idField of data
+          delete data[@constructor.idField]
         url = @_getURLBase()
 
       # TODO: check deferred/promise re-setup
@@ -280,7 +280,7 @@ angular.module("restOrm", [
         value = obj[fieldName]
         continue if not value
         if angular.isObject(value) or (value instanceof Resource)
-          obj[fieldName] = if value.id? then value.id else null
+          obj[fieldName] = if value.$id? then value.$id else null
 
       for reference in @constructor.m2m
         fieldName = reference.name
@@ -292,7 +292,7 @@ angular.module("restOrm", [
         values_new = []
         for value in values
           if angular.isObject(value) or (value instanceof Resource)
-            values_new.push(if value.id? then value.id else null)
+            values_new.push(if value.$id? then value.$id else null)
           else
             values_new.push(value)
         obj[fieldName] = values_new
