@@ -99,19 +99,21 @@ angular.module("restOrm", [
 
       @$initialize?(arguments...)
 
-    @Create: (data=null) ->
+    @Create: (data=null, opts={}) ->
       data = data or @defaults
       item = new @(data, {persisted: false})
-      item.$save()
+      item.$save(opts)
       item
 
-    @Get: (id) ->
+    @Get: (id, opts={}) ->
       item = new @()
       url = urljoin @_GetURLBase(), id
       $http(
         method: "GET"
         url: url
         headers: @_BuildHeaders 'Get', 'GET', null
+        params: opts.params or {}
+        data: opts.data or {}
       ).then (response) =>
         response = @_TransformResponse response.data, {
           what: 'Get', method: 'GET', url: url, response: response
@@ -119,13 +121,15 @@ angular.module("restOrm", [
         item._fromRemote(response.data)
       item
 
-    @All: () ->
+    @All: (opts={}) ->
       collection = @_MakeCollection()
       url = urljoin @_GetURLBase()
       $http(
         method: "GET"
         url: url
         headers: @_BuildHeaders 'All', 'GET', null
+        params: opts.params or {}
+        data: opts.data or {}
       ).then (response) =>
         response = @_TransformResponse response.data, {
           what: 'All', method: 'GET', url: url, response: response
@@ -137,19 +141,21 @@ angular.module("restOrm", [
         collection.$meta.deferred_direct.resolve(collection)
       collection
 
-    @Search: (field, value) ->
+    @Search: (field, value, opts={}) ->
       url = urljoin @GetUrlBase(), "search", field, value
       $http(
         method: "GET"
         url: url
         headers: @_BuildHeaders 'Search', 'GET', null
+        params: opts.params or {}
+        data: opts.data or {}
       ).then (response) =>
         response = @_TransformResponse response.data, {
           what: 'Search', method: 'GET', url: url, response: response
         }
         @_MakeInstanceFromRemote(values) for values in response.data
 
-    $save: ->
+    $save: (opts={}) ->
       data = @_toObject()
       if @$meta.persisted and @$id?
         method = 'PUT'
@@ -170,6 +176,7 @@ angular.module("restOrm", [
         data: data
         cache: false
         headers: headers
+        params: opts.params or {}
       ).then (response) =>
         response = @_transformResponse response.data, {
           what: '$save', method: method, url: url, response: response

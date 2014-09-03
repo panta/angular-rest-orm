@@ -127,6 +127,15 @@ describe "ORM basic functionality:", ->
       # result = handler.mostRecentCall.args[0]
       # expect(result).toBe(book)
       return
+    it "should handle params", ->
+      $httpBackend.expect('POST', '/api/v1/books/?mode=full').respond(200, { id: 1, title: "Moby Dick" })
+      book = Book.Create { 'title': "Moby Dick" },
+        params: {mode: "full"}
+      $httpBackend.flush()
+      book.$promise.then jasmine.createSpy('success')
+      $rootScope.$digest()
+      expect(book.title).toEqual("Moby Dick")
+      return
 
     return
 
@@ -188,6 +197,30 @@ describe "ORM basic functionality:", ->
       expect(book.subtitle).toEqual("")
       expect(book.author).toEqual(null)
       expect(book.tags).toEqual([])
+      return
+    it "should handle params", ->
+      $httpBackend.expect('GET', '/api/v1/books/1?mode=full', (data) ->
+        return (data == "{}")
+      ).respond(200, { id: 1, title: "The Jungle" })
+      book = Book.Get 1,
+        params: {mode: "full"}
+      $httpBackend.flush()
+      book.$promise.then jasmine.createSpy('success')
+      $rootScope.$digest()
+      expect(book.title).toEqual("The Jungle")
+      return
+    it "should handle data", ->
+      $httpBackend.expect('GET', '/api/v1/books/1', (data) ->
+        return false if not (data and angular.isString(data))
+        data = JSON.parse(data)
+        return data and data.mode? and (data.mode == "full")
+      ).respond(200, { id: 1, title: "The Jungle" })
+      book = Book.Get 1,
+        data: {mode: "full"}
+      $httpBackend.flush()
+      book.$promise.then jasmine.createSpy('success')
+      $rootScope.$digest()
+      expect(book.title).toEqual("The Jungle")
       return
 
     return
@@ -275,6 +308,30 @@ describe "ORM basic functionality:", ->
       expect(collection[1].$id).toBeDefined()
       expect(collection[1].$id).toEqual(2)
       expect(collection[1].title).toEqual("Robinson Crusoe")
+      return
+    it "should handle params", ->
+      $httpBackend.expect('GET', '/api/v1/books/?title=Robinson+Crusoe', (data) ->
+        return (data == "{}")
+      ).respond(200, [ { id: 2, title: "Robinson Crusoe" } ])
+      collection = Book.All
+        params: {title: "Robinson Crusoe"}
+      $httpBackend.flush()
+      collection.$promise.then jasmine.createSpy('success')
+      $rootScope.$digest()
+      expect(collection.length).toEqual(1)
+      return
+    it "should handle data", ->
+      $httpBackend.expect('GET', '/api/v1/books/', (data) ->
+        return false if not (data and angular.isString(data))
+        data = JSON.parse(data)
+        return data and data.title? and (data.title == "Robinson Crusoe")
+      ).respond(200, [ { id: 2, title: "Robinson Crusoe" } ])
+      collection = Book.All
+        data: {title: "Robinson Crusoe"}
+      $httpBackend.flush()
+      collection.$promise.then jasmine.createSpy('success')
+      $rootScope.$digest()
+      expect(collection.length).toEqual(1)
       return
 
     return
@@ -418,6 +475,31 @@ describe "ORM basic functionality:", ->
       book.title = "The Jungle 2.0"
       book.$save()
       $httpBackend.when('PUT', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle 2.0" })
+      $httpBackend.flush()
+      book.$promise.then jasmine.createSpy('success')
+      $rootScope.$digest()
+      expect(book.title).toEqual("The Jungle 2.0")
+      return
+    it "should handle params for fresh instance", ->
+      $httpBackend.expect('POST', '/api/v1/books/?mode=full').respond(200, { id: 1, title: "The Jungle" })
+      book = new Book({ title: "The Jungle" })
+      book.$save
+        params: {mode: "full"}
+      $httpBackend.flush()
+      book.$promise.then jasmine.createSpy('success')
+      $rootScope.$digest()
+      expect(book.title).toEqual("The Jungle")
+      return
+    it "should handle params for existing instance", ->
+      book = Book.Get(1)
+      $httpBackend.when('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle" })
+      $httpBackend.flush()
+      book.$promise.then jasmine.createSpy('success')
+      $rootScope.$digest()
+      $httpBackend.expect('PUT', '/api/v1/books/1?mode=full').respond(200, { id: 1, title: "The Jungle 2.0" })
+      book.title = "The Jungle 2.0"
+      book.$save
+        params: {mode: "full"}
       $httpBackend.flush()
       book.$promise.then jasmine.createSpy('success')
       $rootScope.$digest()
