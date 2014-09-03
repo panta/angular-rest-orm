@@ -1,5 +1,52 @@
 angular.module("restOrm", [
 ]).factory("Resource", ($http, $q) ->
+
+  startsWith = (s, sub) -> s.slice(0, sub.length) == sub
+  endsWith   = (s, sub) -> sub == '' or s.slice(-sub.length) == sub
+
+  # based on http://stackoverflow.com/a/2676231
+  _urljoin = (components...) ->
+    normalize = (str) ->
+      str.replace(/[\/]+/g, "/").replace(/\/\?/g, "?").replace(/\/\#/g, "#").replace /\:\//g, "://"
+    url_result = []
+
+    if components and (components.length > 0)
+      skip = 0
+      while (skip < components.length)
+        if components[skip]
+          break
+        ++skip
+      components = components[skip..] if skip
+
+    last_comp = null
+    for component in components
+      continue if not (component? and component)
+      last_comp = component
+      c_url = "#{component}".split("/")
+      for i in [0...c_url.length]
+        if c_url[i] is ".."
+          url_result.pop()
+        else if (c_url[i] is ".") or (c_url[i] is "")
+          continue
+        else
+          url_result.push c_url[i]
+
+    r = normalize url_result.join("/")
+    if components and (components.length >= 1)
+      component = "#{components[0]}"
+      if startsWith(component, "//")
+        r = "//" + r
+      else if startsWith(component, "/")
+        r = "/" + r
+
+      last_comp = "#{last_comp}"
+      if endsWith(last_comp, "/") and (not endsWith(r, "/"))
+        r = r + "/"
+    r
+
+  urljoin = ->
+    encodeURI _urljoin arguments...
+
   class Resource
     @urlPrefix: ''
     @urlEndpoint: ''
@@ -60,7 +107,7 @@ angular.module("restOrm", [
 
     @Get: (id) ->
       item = new @()
-      url = @_GetURLBase() + "#{id}"
+      url = urljoin @_GetURLBase(), id
       $http(
         method: "GET"
         url: url
@@ -74,7 +121,7 @@ angular.module("restOrm", [
 
     @All: () ->
       collection = @_MakeCollection()
-      url = @_GetURLBase()
+      url = urljoin @_GetURLBase()
       $http(
         method: "GET"
         url: url
@@ -91,9 +138,7 @@ angular.module("restOrm", [
       collection
 
     @Search: (field, value) ->
-      e_field = encodeURIComponent(field)
-      e_value = encodeURIComponent(value)
-      url = "#{@GetUrlBase()}search/#{e_field}/#{e_value}"
+      url = urljoin @GetUrlBase(), "search", field, value
       $http(
         method: "GET"
         url: url
@@ -108,12 +153,12 @@ angular.module("restOrm", [
       data = @_toObject()
       if @$meta.persisted and @$id?
         method = 'PUT'
-        url = @_getURLBase() + "#{@$id}"
+        url = urljoin @_getURLBase(), @$id
       else
         method = 'POST'
         if @constructor.idField of data
           delete data[@constructor.idField]
-        url = @_getURLBase()
+        url = urljoin @_getURLBase()
 
       # TODO: check deferred/promise re-setup
       @_setupPromises()
@@ -160,7 +205,7 @@ angular.module("restOrm", [
       instance
 
     @_GetURLBase: ->
-      "#{@urlPrefix}#{@urlEndpoint}"
+      _urljoin @urlPrefix, @urlEndpoint
 
     @_BuildHeaders: (what=null, method=null, instance=null) ->
       if not @headers?
@@ -218,7 +263,7 @@ angular.module("restOrm", [
       @
 
     _getURLBase: ->
-      "#{@constructor.urlPrefix}#{@constructor.urlEndpoint}"
+      _urljoin @constructor.urlPrefix, @constructor.urlEndpoint
 
     _fetchRelations: ->
       @_fetchReferences()
@@ -308,4 +353,6 @@ angular.module("restOrm", [
       if @constructor.idField of data
         @$id = obj[@constructor.idField]
       @
+
+  Resource
 )
