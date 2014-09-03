@@ -117,15 +117,14 @@ describe "ORM basic functionality:", ->
       expect(book.$id).toEqual(1)
       return
     it "instance $promise result is the instance itself", ->
-      # TODO
-      # book = Book.Create({ 'title': "Moby Dick" })
-      # $httpBackend.when('POST', '/api/v1/books/').respond(200, { id: 1, title: "The Jungle", subtitle: "", author: null, tags: [] } )
-      # $httpBackend.flush()
-      # handler = jasmine.createSpy('success')
-      # book.$promise.then handler
-      # $rootScope.$digest()
-      # result = handler.mostRecentCall.args[0]
-      # expect(result).toBe(book)
+      book = Book.Create({ 'title': "Moby Dick" })
+      $httpBackend.when('POST', '/api/v1/books/').respond(200, { id: 1, title: "The Jungle", subtitle: "", author: null, tags: [] } )
+      $httpBackend.flush()
+      handler = jasmine.createSpy('success')
+      book.$promise.then handler
+      $rootScope.$digest()
+      result = handler.mostRecentCall.args[0]
+      expect(result).toBe(book)
       return
     it "should handle params", ->
       $httpBackend.expect('POST', '/api/v1/books/?mode=full').respond(200, { id: 1, title: "Moby Dick" })

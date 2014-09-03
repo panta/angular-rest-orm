@@ -83,6 +83,16 @@ angular.module("restOrm", [
     constructor: (data=null, opts={}) ->
       @$meta =
         persisted: false
+        async:
+          direct:
+            deferred: null
+            resolved: true          # signal we need to create it
+          m2o:
+            deferred: null
+            resolved: true          # signal we need to create it
+          m2m:
+            deferred: null
+            resolved: true          # signal we need to create it
       angular.extend(@$meta, opts)
 
       @$id = null
@@ -108,6 +118,7 @@ angular.module("restOrm", [
     @Get: (id, opts={}) ->
       item = new @()
       url = urljoin @_GetURLBase(), id
+      item._setupPromises()
       $http(
         method: "GET"
         url: url
@@ -208,6 +219,7 @@ angular.module("restOrm", [
 
     @_MakeInstanceFromRemote: (data) ->
       instance = new @()
+      instance._setupPromises()
       instance._fromRemote(data)
       instance
 
@@ -257,24 +269,65 @@ angular.module("restOrm", [
       @constructor._BuildHeaders what, method, @
 
     _setupPromises: ->
-      @$meta.$ref_promise = null
-      @$meta.$m2m_promise = null
-
-      @$meta.deferred = $q.defer()
-      @$meta.deferred_direct = $q.defer()
       # @$promise is a promise fulfilled when the object is completely fetched, complete
       # with relations (reference and m2m objects).
       # @$promiseDirect is fulfilled when the object is fetched (without caring for relations)
-      @$promise = $q.all([ @$meta.$ref_promise, @$meta.$m2m_promise ])
-      @$promiseDirect = @$meta.deferred_direct.promise
+
+      changed = false
+      if @$meta.async.direct.resolved or (not @$meta.async.direct.deferred?)
+        # console.log "#{@constructor.name}: creating new direct promise ($promiseDirect)"
+        @$meta.async.direct.deferred = $q.defer()
+        @$meta.async.direct.resolved = false
+        changed = true
+
+        @$promiseDirect = @$meta.async.direct.deferred.promise.then =>
+          @$meta.async.direct.resolved = true
+          # console.log "#{@constructor.name}: resolved $promiseDirect"
+          return @
+
+      if @$meta.async.m2o.resolved or (not @$meta.async.m2o.deferred?)
+        # console.log "#{@constructor.name}: creating new m2o promise"
+        @$meta.async.m2o.deferred = $q.defer()
+        @$meta.async.m2o.resolved = false
+        changed = true
+
+        @$meta.async.m2o.deferred.promise.then =>
+          @$meta.async.m2o.resolved = true
+          # console.log "#{@constructor.name}: resolved m2o"
+          return @
+
+      if @$meta.async.m2m.resolved or (not @$meta.async.m2m.deferred?)
+        # console.log "#{@constructor.name}: creating new m2m promise"
+        @$meta.async.m2m.deferred = $q.defer()
+        @$meta.async.m2m.resolved = false
+        changed = true
+
+        @$meta.async.m2m.deferred.promise.then =>
+          @$meta.async.m2m.resolved = true
+          # console.log "#{@constructor.name}: resolved m2m"
+          return @
+
+      if changed
+        # console.log "#{@constructor.name}: creating new $promise"
+        @$promise = $q.all([
+          @$meta.async.direct.deferred.promise,
+          @$meta.async.m2o.deferred.promise,
+          @$meta.async.m2m.deferred.promise
+        ]).then =>
+          @$meta.async.direct.resolved = true
+          @$meta.async.m2o.resolved = true
+          @$meta.async.m2m.resolved = true
+          # console.log "#{@constructor.name}: resolved everything ($promise)"
+          return @
       @
 
     _getURLBase: ->
       _urljoin @constructor.urlPrefix, @constructor.urlEndpoint
 
     _fetchRelations: ->
-      @_fetchReferences()
-      @_fetchM2M()
+      if @$id
+        @_fetchReferences()
+        @_fetchM2M()
       @
 
     _fetchReferences: ->
@@ -282,15 +335,14 @@ angular.module("restOrm", [
         fieldName = reference.name
         if (fieldName of instance) and instance[fieldName]
           ref_id = instance[fieldName]
-          promises.push reference.model.get(ref_id).then((record) ->
-            instance[fieldName] = record
-            instance["#{fieldName}_id"] = ref_id
-            return instance
-          )
+          record = reference.model.Get(ref_id)
+          instance[fieldName] = record
+          promises.push record.$promise
       promises = []
       for reference in @constructor.references
         fetchReference(@, reference, promises)
-      @$meta.$ref_promise = $q.all(promises)
+      $q.all(promises).then =>
+        @$meta.async.m2o.deferred.resolve(@)
       @
 
     _fetchM2M: ->
@@ -298,24 +350,29 @@ angular.module("restOrm", [
         fieldName = m2m.name
         if (fieldName of instance) and instance[fieldName]
           refs_promises = []
+          refs_collection = m2m.model._MakeCollection()
           for ref_id in instance[fieldName]
-            refs_promises.push m2m.model.get(ref_id)
-          promises.push $q.all(refs_promises).then((records) ->
-            instance[fieldName] = records
-            return instance
-          )
+            record = m2m.model.Get(ref_id)
+            refs_collection.push record
+            refs_promises.push record.$promise
+          instance[fieldName] = refs_collection
+          promises.push refs_collection.$promise
+          refs_collection.$_getPromiseForItems().then ->
+            refs_collection.$meta.deferred.resolve(refs_collection)
+          refs_collection.$meta.deferred_direct.resolve(refs_collection)
         else
           instance[fieldName] = []
       promises = []
       for m2m in @constructor.m2m
         fetchM2M(@, m2m, promises)
-      @$meta.$m2m_promise = $q.all(promises)
+      $q.all(promises).then =>
+        @$meta.async.m2m.deferred.resolve(@)
       @
 
     _fromRemote: (data) ->
       @_fromObject(data)
       @$meta.persisted = true
-      @$meta.deferred_direct.resolve(@)
+      @$meta.async.direct.deferred.resolve(@)
       @_fetchRelations()
       return @
 
