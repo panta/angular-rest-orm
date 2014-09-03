@@ -387,7 +387,7 @@ angular.module("restOrm", [
         fieldName = reference.name
         continue if not (fieldName of obj)
         value = obj[fieldName]
-        continue if not value
+        continue if not value?
         if angular.isObject(value) or (value instanceof Resource)
           obj[fieldName] = if value.$id? then value.$id else null
 
@@ -395,7 +395,7 @@ angular.module("restOrm", [
         fieldName = reference.name
         continue if not (fieldName of obj)
         values = obj[fieldName]
-        continue if not values
+        continue if not values?
         if not angular.isArray(values)
           values = [ values ]
         values_new = []
