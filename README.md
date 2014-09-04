@@ -1,6 +1,8 @@
 Angular REST ORM
 ================
 
+[![Build Status](https://travis-ci.org/panta/angular-rest-orm.svg)](https://travis-ci.org/panta/angular-rest-orm)
+
 Angular REST ORM provides an easy to use, Active Record-like, ORM for your RESTful APIs.
 
 It's meant to be more natural and fun to use than `$resource`.
