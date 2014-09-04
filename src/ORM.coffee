@@ -147,9 +147,7 @@ angular.module("restOrm", [
         }
         for values in response.data
           collection.push @_MakeInstanceFromRemote(values)
-        collection.$_getPromiseForItems().then ->
-          collection.$meta.deferred.resolve(collection)
-        collection.$meta.deferred_direct.resolve(collection)
+        collection.$finalize()
       collection
 
     @Search: (field, value, opts={}) ->
@@ -203,10 +201,15 @@ angular.module("restOrm", [
       collection = []
       collection.$meta =
         model: @
-        deferred: $q.defer()
-        deferred_direct: $q.defer()
-      collection.$promise = collection.$meta.deferred.promise
-      collection.$promiseDirect = collection.$meta.deferred_direct.promise
+        async:
+          direct:
+            deferred: $q.defer()
+            resolved: false
+          complete:
+            deferred: $q.defer()
+            resolved: false
+      collection.$promise = collection.$meta.async.complete.deferred.promise
+      collection.$promiseDirect = collection.$meta.async.direct.deferred.promise
       collection.$getItemsPromises = ->
         (instance.$promise for instance in collection)
       collection.$getItemsPromiseDirects = ->
@@ -215,6 +218,13 @@ angular.module("restOrm", [
         $q.all collection.$getItemsPromises()
       collection.$_getPromiseDirectForItems = ->
         $q.all collection.$getItemsPromiseDirects()
+      collection.$finalize = ->
+        collection.$_getPromiseForItems().then ->
+          collection.$meta.async.complete.deferred.resolve(collection)
+          collection.$meta.async.complete.resolved = true
+        collection.$meta.async.direct.deferred.resolve(collection)
+        collection.$meta.async.direct.resolved = true
+        collection
       collection
 
     @_MakeInstanceFromRemote: (data) ->
@@ -357,9 +367,7 @@ angular.module("restOrm", [
             refs_promises.push record.$promise
           instance[fieldName] = refs_collection
           promises.push refs_collection.$promise
-          refs_collection.$_getPromiseForItems().then ->
-            refs_collection.$meta.deferred.resolve(refs_collection)
-          refs_collection.$meta.deferred_direct.resolve(refs_collection)
+          refs_collection.$finalize()
         else
           instance[fieldName] = []
       promises = []
