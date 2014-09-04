@@ -23,10 +23,9 @@ describe "relations functionality:", ->
           name: ""
       class Book extends Resource
         @urlEndpoint: '/api/v1/books/'
-        @references: [{name: 'author', model: Author}]
-        @defaults:
-          title: ""
-          author: null
+        @fields:
+          title: { default: "" }
+          author: { type: Resource.Reference, model: Author, default: null }
 
       $httpBackend.expect('GET', '/api/v1/books/1').respond(200, { id: 1, title: "Moby Dick", author: 2 } )
       $httpBackend.expect('GET', '/api/v1/authors/2').respond(200, { id: 2, name: "Herman Melville" } )
@@ -54,10 +53,9 @@ describe "relations functionality:", ->
           name: ""
       class Book extends Resource
         @urlEndpoint: '/api/v1/books/'
-        @m2m: [{name: 'tags', model: Tag}]
-        @defaults:
-          title: ""
-          tags: null
+        @fields:
+          title: { default: "" }
+          tags: { type: Resource.ManyToMany, model: Tag, default: null }
 
       $httpBackend.expect('GET', '/api/v1/books/1').respond(200, { id: 1, title: "Moby Dick", tags: [2, 5] } )
       $httpBackend.expect('GET', '/api/v1/tags/2').respond(200, { id: 2, name: "novel" } )
@@ -92,10 +90,9 @@ describe "relations functionality:", ->
           name: ""
       class Book extends Resource
         @urlEndpoint: '/api/v1/books/'
-        @references: [{name: 'author', model: Author}]
-        @defaults:
-          title: ""
-          author: null
+        @fields:
+          title: { default: "" }
+          author: { type: Resource.Reference, model: Author, default: null }
 
       $httpBackend.expect('GET', '/api/v1/authors/2').respond(200, { id: 2, name: "Herman Melville" } )
       $httpBackend.expect('POST', '/api/v1/books/', (data) ->
@@ -132,10 +129,9 @@ describe "relations functionality:", ->
           name: ""
       class Book extends Resource
         @urlEndpoint: '/api/v1/books/'
-        @m2m: [{name: 'tags', model: Tag}]
-        @defaults:
-          title: ""
-          tags: null
+        @fields:
+          title: { default: "" }
+          tags: { type: Resource.ManyToMany, model: Tag, default: null }
 
       $httpBackend.expect('GET', '/api/v1/tags/2').respond(200, { id: 2, name: "novel" } )
       $httpBackend.expect('GET', '/api/v1/tags/5').respond(200, { id: 5, name: "fiction" } )

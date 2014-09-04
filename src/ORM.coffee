@@ -1,6 +1,23 @@
 angular.module("restOrm", [
 ]).factory("Resource", ($http, $q) ->
 
+  # based on http://stackoverflow.com/a/4994244
+  isEmpty = (obj) ->
+    # null and undefined are "empty"
+    return true  unless obj?
+
+    # Assume if it has a length property with a non-zero value
+    # that that property is correct.
+    return false  if obj.length > 0
+    return true  if obj.length is 0
+
+    # Otherwise, does it have any properties of its own?
+    # Note that this doesn't handle
+    # toString and valueOf enumeration bugs in IE < 9
+    for own key of obj
+      return false
+    true
+
   startsWith = (s, sub) -> s.slice(0, sub.length) == sub
   endsWith   = (s, sub) -> sub == '' or s.slice(-sub.length) == sub
 
@@ -52,12 +69,14 @@ angular.module("restOrm", [
     @urlEndpoint: ''
 
     @idField: 'id'
+    @fields = {}
     @defaults: {}
-    @references: []
-    @m2m: []
     @headers: {}
 
     @transformResponse: null
+
+    @Reference: 'reference'       # many-to-one
+    @ManyToMany: 'many2many'      # many-to-many
 
     @include: (obj) ->
       throw new Error('include(obj) requires obj') unless obj
@@ -165,7 +184,7 @@ angular.module("restOrm", [
         @_MakeInstanceFromRemote(values) for values in response.data
 
     $save: (opts={}) ->
-      data = @_toObject()
+      data = @_toRemoteObject()
       if @$meta.persisted and @$id?
         method = 'PUT'
         url = urljoin @_getURLBase(), @$id
@@ -349,8 +368,10 @@ angular.module("restOrm", [
           instance[fieldName] = record
           promises.push record.$promise
       promises = []
-      for reference in @constructor.references
-        fetchReference(@, reference, promises)
+      for name of @constructor.fields
+        def = @_getField(name)
+        if def.type is @constructor.Reference
+          fetchReference(@, def, promises)
       $q.all(promises).then =>
         @$meta.async.m2o.deferred.resolve(@)
       @
@@ -371,57 +392,115 @@ angular.module("restOrm", [
         else
           instance[fieldName] = []
       promises = []
-      for m2m in @constructor.m2m
-        fetchM2M(@, m2m, promises)
+      for name of @constructor.fields
+        def = @_getField(name)
+        if def.type is @constructor.ManyToMany
+          fetchM2M(@, def, promises)
       $q.all(promises).then =>
         @$meta.async.m2m.deferred.resolve(@)
       @
 
     _fromRemote: (data) ->
-      @_fromObject(data)
+      @_fromRemoteObject(data)
       @$meta.persisted = true
       @$meta.async.direct.deferred.resolve(@)
       @_fetchRelations()
       return @
 
+    _getField: (name) ->
+      def = {name: name, remote: name, type: null, model: null}
+      if name of @constructor.fields
+        return angular.extend(def, @constructor.fields[name] or {})
+      def
+
     _toObject: ->
       obj = {}
-      for own k, v of @
-        if k in ['$meta', 'constructor', '__proto__']
+
+      for own name, value of @
+        if name in ['$id', '$meta', 'constructor', '__proto__']
           continue
-        obj[k] = v
-
-      for reference in @constructor.references
-        fieldName = reference.name
-        continue if not (fieldName of obj)
-        value = obj[fieldName]
-        continue if not (value? and value)
-        if angular.isObject(value) or (value instanceof Resource)
-          obj[fieldName] = if value.$id? then value.$id else null
-
-      for reference in @constructor.m2m
-        fieldName = reference.name
-        continue if not (fieldName of obj)
-        values = obj[fieldName]
-        continue if not (values? and values)
-        if not angular.isArray(values)
-          values = [ values ]
-        values_new = []
-        for value in values
+        def = @_getField(name)
+        obj[name] = value
+        continue if not value
+        if def.type is @constructor.Reference
           if angular.isObject(value) or (value instanceof Resource)
-            values_new.push(if value.$id? then value.$id else null)
-          else
-            values_new.push(value)
-        obj[fieldName] = values_new
+            obj[name] = if value.$id? then value.$id else null
+        else if def.type is @constructor.ManyToMany
+          values = if angular.isArray(value) then value else [ value ]
+          result_values = []
+          for value in values
+            if angular.isObject(value) or (value instanceof Resource)
+              result_values.push(if value.$id? then value.$id else null)
+            else
+              result_values.push(value)
+          obj[name] = result_values
 
       obj
 
     _fromObject: (obj) ->
       data = angular.extend({}, @constructor.defaults, obj or {})
-      for k, v of data
-        if k in ['$id', '$meta', 'constructor', '__proto__']
+
+      for name, value of data
+        if name in ['$id', '$meta', 'constructor', '__proto__']
           continue
-        @[k] = v
+        @[name] = value
+
+      for name of @constructor.fields
+        def = @_getField(name)
+        if name in ['$id', '$meta', 'constructor', '__proto__']
+          continue
+        if not (name of data) and ('default' of def)
+          @[name] = def.default
+      @
+
+    _toRemoteObject: ->
+      obj = {}
+
+      for own name, value of @
+        if name in ['$id', '$meta', 'constructor', '__proto__']
+          continue
+        def = @_getField(name)
+        obj[def.remote] = value
+        continue if not value
+        if def.type is @constructor.Reference
+          if angular.isObject(value) or (value instanceof Resource)
+            obj[def.remote] = if value.$id? then value.$id else null
+        else if def.type is @constructor.ManyToMany
+          values = if angular.isArray(value) then value else [ value ]
+          result_values = []
+          for value in values
+            if angular.isObject(value) or (value instanceof Resource)
+              result_values.push(if value.$id? then value.$id else null)
+            else
+              result_values.push(value)
+          obj[def.remote] = result_values
+
+      obj
+
+    _fromRemoteObject: (obj) ->
+      if isEmpty(@constructor.fields)
+        data = angular.extend({}, @constructor.defaults, obj or {})
+
+        for name, value of data
+          if name in ['$id', '$meta', 'constructor', '__proto__']
+            continue
+          @[name] = value
+      else
+        data = angular.extend({}, obj or {})
+
+        for name of @constructor.fields
+          def = @_getField(name)
+          if name in ['$id', '$meta', 'constructor', '__proto__']
+            continue
+          if def.remote of data
+            @[name] = data[def.remote]
+          else if 'default' of def
+            @[name] = def.default
+
+        for name, value of @constructor.defaults
+          if not (name of @)
+            @[name] = value
+
       if @constructor.idField of data
         @$id = obj[@constructor.idField]
       @
