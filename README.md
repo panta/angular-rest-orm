@@ -1,7 +1,7 @@
 Angular REST ORM
 ================
 
-[![Build Status](https://travis-ci.org/panta/angular-rest-orm.svg)](https://travis-ci.org/panta/angular-rest-orm)
+[![Build Status](https://travis-ci.org/panta/angular-rest-orm.svg)](https://travis-ci.org/panta/angular-rest-orm) [![Bower version](https://badge.fury.io/bo/angular-rest-orm.svg)](http://badge.fury.io/bo/angular-rest-orm)
 
 Angular REST ORM provides an easy to use, Active Record-like, ORM for your RESTful APIs.
 
