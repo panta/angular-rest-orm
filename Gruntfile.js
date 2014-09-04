@@ -20,7 +20,7 @@ module.exports = function (grunt) {
 
     vendor_files: {
       js: [
-        'vendor/angular/angular.js',
+        'vendor/angular/angular.js'
       ]
     },
 
