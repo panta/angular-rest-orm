@@ -452,9 +452,39 @@ module.exports = function (grunt) {
   ]);
 
   // release task: build, dist, bump, commit & tag
-  grunt.registerTask( 'release', [
-    'bump', 'build', 'dist', 'gitcommit:bump', 'gittag:bump', 'gitpush:bump_branch', 'gitpush:bump_tags'
-  ]);
+  grunt.registerTask( 'release', "Perform a release.", function(versionType, incOrCommitOnly) {
+    var doBump = true, doCommit = true;
+    if (incOrCommitOnly === 'bump-only') {
+      grunt.verbose.writeln('Only incrementing the version.');
+      doCommit = false;
+    } else if (incOrCommitOnly === 'commit-only') {
+      grunt.verbose.writeln('Only committing/tagging/pushing.');
+      doBump = false;
+    }
+    if (doBump) {
+      grunt.verbose.writeln("Bump kind: '" + (versionType || 'patch') + "'");
+      grunt.task.run('bump:' + (versionType || 'patch'));
+    }
+    grunt.task.run([
+      'build', 'dist'
+    ]);
+    if (doCommit) {
+      grunt.task.run([
+        'gitcommit:bump', 'gittag:bump', 'gitpush:bump_branch', 'gitpush:bump_tags'
+      ]);
+    }
+  });
+
+  // ALIASES
+  grunt.registerTask('release-bump-only',
+      "Perform a release incrementing the version only, no tag/commit.",
+      function(versionType) {
+    grunt.task.run('release:' + (versionType || '') + ':bump-only');
+  });
+
+  grunt.registerTask('release-commit',
+      "Commit, tag, push without incrementing the version.",
+      'release::commit-only');
 
   /**
    * A utility function to get all JavaScript sources.
