@@ -1,18 +1,35 @@
 /**
  * Angular ORM for HTTP REST APIs
- * @version angular-rest-orm - v0.3.2 - 2014-09-04
+ * @version angular-rest-orm - v0.4.0 - 2014-09-05
  * @link https://github.com/panta/angular-rest-orm
  * @author Marco Pantaleoni <marco.pantaleoni@gmail.com>
  *
  * Copyright (c) 2014 Marco Pantaleoni <marco.pantaleoni@gmail.com>
  * Licensed under the MIT License, http://opensource.org/licenses/MIT
  */
-var __slice = [].slice,
-  __hasProp = {}.hasOwnProperty,
+var __hasProp = {}.hasOwnProperty,
+  __slice = [].slice,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
 angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http, $q) {
-  var Resource, endsWith, startsWith, urljoin, _urljoin;
+  var Resource, endsWith, isEmpty, startsWith, urljoin, _urljoin;
+  isEmpty = function(obj) {
+    var key;
+    if (obj == null) {
+      return true;
+    }
+    if (obj.length > 0) {
+      return false;
+    }
+    if (obj.length === 0) {
+      return true;
+    }
+    for (key in obj) {
+      if (!__hasProp.call(obj, key)) continue;
+      return false;
+    }
+    return true;
+  };
   startsWith = function(s, sub) {
     return s.slice(0, sub.length) === sub;
   };
@@ -81,15 +98,17 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
 
     Resource.idField = 'id';
 
+    Resource.fields = {};
+
     Resource.defaults = {};
-
-    Resource.references = [];
-
-    Resource.m2m = [];
 
     Resource.headers = {};
 
     Resource.transformResponse = null;
+
+    Resource.Reference = 'reference';
+
+    Resource.ManyToMany = 'many2many';
 
     Resource.include = function(obj) {
       var key, value, _ref;
@@ -299,7 +318,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
       if (opts == null) {
         opts = {};
       }
-      data = this._toObject();
+      data = this._toRemoteObject();
       if (this.$meta.persisted && (this.$id != null)) {
         method = 'PUT';
         url = urljoin(this._getURLBase(), this.$id);
@@ -547,7 +566,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
     };
 
     Resource.prototype._fetchReferences = function() {
-      var fetchReference, promises, reference, _i, _len, _ref;
+      var def, fetchReference, name, promises;
       fetchReference = function(instance, reference, promises) {
         var fieldName, record, ref_id;
         fieldName = reference.name;
@@ -559,10 +578,11 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
         }
       };
       promises = [];
-      _ref = this.constructor.references;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        reference = _ref[_i];
-        fetchReference(this, reference, promises);
+      for (name in this.constructor.fields) {
+        def = this._getField(name);
+        if (def.type === this.constructor.Reference) {
+          fetchReference(this, def, promises);
+        }
       }
       $q.all(promises).then((function(_this) {
         return function() {
@@ -573,7 +593,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
     };
 
     Resource.prototype._fetchM2M = function() {
-      var fetchM2M, m2m, promises, _i, _len, _ref;
+      var def, fetchM2M, name, promises;
       fetchM2M = function(instance, m2m, promises) {
         var fieldName, record, ref_id, refs_collection, refs_promises, _i, _len, _ref;
         fieldName = m2m.name;
@@ -595,10 +615,11 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
         }
       };
       promises = [];
-      _ref = this.constructor.m2m;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        m2m = _ref[_i];
-        fetchM2M(this, m2m, promises);
+      for (name in this.constructor.fields) {
+        def = this._getField(name);
+        if (def.type === this.constructor.ManyToMany) {
+          fetchM2M(this, def, promises);
+        }
       }
       $q.all(promises).then((function(_this) {
         return function() {
@@ -609,76 +630,150 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
     };
 
     Resource.prototype._fromRemote = function(data) {
-      this._fromObject(data);
+      this._fromRemoteObject(data);
       this.$meta.persisted = true;
       this.$meta.async.direct.deferred.resolve(this);
       this._fetchRelations();
       return this;
     };
 
+    Resource.prototype._getField = function(name) {
+      var def;
+      def = {
+        name: name,
+        remote: name,
+        type: null,
+        model: null
+      };
+      if (name in this.constructor.fields) {
+        return angular.extend(def, this.constructor.fields[name] || {});
+      }
+      return def;
+    };
+
     Resource.prototype._toObject = function() {
-      var fieldName, k, obj, reference, v, value, values, values_new, _i, _j, _k, _len, _len1, _len2, _ref, _ref1;
+      var def, name, obj, result_values, value, values, _i, _len;
       obj = {};
-      for (k in this) {
-        if (!__hasProp.call(this, k)) continue;
-        v = this[k];
-        if (k === '$meta' || k === 'constructor' || k === '__proto__') {
+      for (name in this) {
+        if (!__hasProp.call(this, name)) continue;
+        value = this[name];
+        if (name === '$id' || name === '$meta' || name === 'constructor' || name === '__proto__') {
           continue;
         }
-        obj[k] = v;
-      }
-      _ref = this.constructor.references;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        reference = _ref[_i];
-        fieldName = reference.name;
-        if (!(fieldName in obj)) {
+        def = this._getField(name);
+        obj[name] = value;
+        if (!value) {
           continue;
         }
-        value = obj[fieldName];
-        if (!((value != null) && value)) {
-          continue;
-        }
-        if (angular.isObject(value) || (value instanceof Resource)) {
-          obj[fieldName] = value.$id != null ? value.$id : null;
-        }
-      }
-      _ref1 = this.constructor.m2m;
-      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-        reference = _ref1[_j];
-        fieldName = reference.name;
-        if (!(fieldName in obj)) {
-          continue;
-        }
-        values = obj[fieldName];
-        if (!((values != null) && values)) {
-          continue;
-        }
-        if (!angular.isArray(values)) {
-          values = [values];
-        }
-        values_new = [];
-        for (_k = 0, _len2 = values.length; _k < _len2; _k++) {
-          value = values[_k];
+        if (def.type === this.constructor.Reference) {
           if (angular.isObject(value) || (value instanceof Resource)) {
-            values_new.push(value.$id != null ? value.$id : null);
-          } else {
-            values_new.push(value);
+            obj[name] = value.$id != null ? value.$id : null;
           }
+        } else if (def.type === this.constructor.ManyToMany) {
+          values = angular.isArray(value) ? value : [value];
+          result_values = [];
+          for (_i = 0, _len = values.length; _i < _len; _i++) {
+            value = values[_i];
+            if (angular.isObject(value) || (value instanceof Resource)) {
+              result_values.push(value.$id != null ? value.$id : null);
+            } else {
+              result_values.push(value);
+            }
+          }
+          obj[name] = result_values;
         }
-        obj[fieldName] = values_new;
       }
       return obj;
     };
 
     Resource.prototype._fromObject = function(obj) {
-      var data, k, v;
+      var data, def, name, value;
       data = angular.extend({}, this.constructor.defaults, obj || {});
-      for (k in data) {
-        v = data[k];
-        if (k === '$id' || k === '$meta' || k === 'constructor' || k === '__proto__') {
+      for (name in data) {
+        value = data[name];
+        if (name === '$id' || name === '$meta' || name === 'constructor' || name === '__proto__') {
           continue;
         }
-        this[k] = v;
+        this[name] = value;
+      }
+      for (name in this.constructor.fields) {
+        def = this._getField(name);
+        if (name === '$id' || name === '$meta' || name === 'constructor' || name === '__proto__') {
+          continue;
+        }
+        if (!(name in data) && ('default' in def)) {
+          this[name] = def["default"];
+        }
+      }
+      return this;
+    };
+
+    Resource.prototype._toRemoteObject = function() {
+      var def, name, obj, result_values, value, values, _i, _len;
+      obj = {};
+      for (name in this) {
+        if (!__hasProp.call(this, name)) continue;
+        value = this[name];
+        if (name === '$id' || name === '$meta' || name === 'constructor' || name === '__proto__') {
+          continue;
+        }
+        def = this._getField(name);
+        obj[def.remote] = value;
+        if (!value) {
+          continue;
+        }
+        if (def.type === this.constructor.Reference) {
+          if (angular.isObject(value) || (value instanceof Resource)) {
+            obj[def.remote] = value.$id != null ? value.$id : null;
+          }
+        } else if (def.type === this.constructor.ManyToMany) {
+          values = angular.isArray(value) ? value : [value];
+          result_values = [];
+          for (_i = 0, _len = values.length; _i < _len; _i++) {
+            value = values[_i];
+            if (angular.isObject(value) || (value instanceof Resource)) {
+              result_values.push(value.$id != null ? value.$id : null);
+            } else {
+              result_values.push(value);
+            }
+          }
+          obj[def.remote] = result_values;
+        }
+      }
+      return obj;
+    };
+
+    Resource.prototype._fromRemoteObject = function(obj) {
+      var data, def, name, value, _ref;
+      if (isEmpty(this.constructor.fields)) {
+        data = angular.extend({}, this.constructor.defaults, obj || {});
+        for (name in data) {
+          value = data[name];
+          if (name === '$id' || name === '$meta' || name === 'constructor' || name === '__proto__') {
+            continue;
+          }
+          this[name] = value;
+        }
+      } else {
+        data = angular.extend({}, obj || {});
+        for (name in this.constructor.fields) {
+          def = this._getField(name);
+          if (name === '$id' || name === '$meta' || name === 'constructor' || name === '__proto__') {
+            continue;
+          }
+          if (def.remote in data) {
+            this[name] = data[def.remote];
+          } else if ('default' in def) {
+            this[name] = def["default"];
+          }
+        }
+        _ref = this.constructor.defaults;
+        for (name in _ref) {
+          value = _ref[name];
+          if (!(name in this)) {
+            this[name] = value;
+          }
+        }
       }
       if (this.constructor.idField in data) {
         this.$id = obj[this.constructor.idField];
