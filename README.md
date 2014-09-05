@@ -9,8 +9,6 @@ It's meant to be more natural and fun to use than `$resource`.
 
 It supports advanced features, such as collections and relations.
 
-**IMPORTANT**: this is a very young project, and even if it is already used in production, some features are still missing.
-
 ```javascript
 var Book = Resource.Subclass({}, {
   urlEndpoint: '/api/v1/books/',
@@ -79,6 +77,7 @@ books.$promise.then ->
 * **Automatic fetch of relations.**
 * **Array-based collections.**
 * **`id` name mapping** (primary key).
+* **Re-mapping** of field names between remote endpoint and model.
 * Base URL configuration.
 * **Custom headers** easily generated via objects and/or functions.
 * **Special responses** easily pre-processed via custom handler.
@@ -89,7 +88,6 @@ books.$promise.then ->
 
 * extensive documentation
 * examples
-* field name mapping
 
 ## Usage
 
