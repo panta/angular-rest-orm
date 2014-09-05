@@ -33,14 +33,14 @@ book.$promise.then(function() {
 
 var books = Book.All();
 books.$promise.then(function() {
-  for(var i = 0; i < books.length; i++) {
+  for (var i = 0; i < books.length; i++) {
     var book = books[i];
     $log.info("" + book.$id + ": " + book.title);
   }
 });
 ```
 
-or from CoffeeScript:
+or in CoffeeScript:
 
 ```coffeescript
 class Book extends Resource
@@ -84,10 +84,6 @@ books.$promise.then ->
 * **Fully tested.**
 * **Bower support.**
 
-## TODO
-
-* extensive documentation
-* examples
 
 ## Usage
 
@@ -114,3 +110,109 @@ and declare the dependency on `restOrm` in your module
 ```javascript
 app = angular.module('MyApp', ['restOrm'])
 ```
+
+### Relations
+
+In JavaScript:
+
+```javascript
+var Author = Resource.Subclass({}, {
+  urlEndpoint: '/api/v1/authors/',
+  fields: {
+    name: { default: "" }
+  }
+});
+
+var Tag = Resource.Subclass({}, {
+  urlEndpoint: '/api/v1/tags/',
+  fields: {
+    name: { default: "" }
+  }
+});
+
+var Book = Resource.Subclass({}, {
+  urlEndpoint: '/api/v1/books/',
+  fields: {
+    title: { default: "" },
+    author: { type: Resource.Reference, model: Author, default: null },
+    tags: { type: Resource.ManyToMany, model: Tag, default: [] },
+  }
+});
+
+var books = Book.All();
+books.$promise.then(function() {
+  for (var i = 0; i < books.length; i++) {
+    var book = books[i];
+    $log.info(book.title + " author: " + book.author.name);
+    for (var j = 0; j < book.tags.length; j++) {
+      var tag = book.tags[j];
+      $log.info("  tagged " + tag.name);
+    }
+  }
+});
+```
+
+or in CoffeeScript:
+
+```coffeescript
+class Author extends Resource
+  @urlEndpoint: '/api/v1/authors/'
+  @fields:
+    name: { default: "" }
+
+class Tag extends Resource
+  @urlEndpoint: '/api/v1/tags/'
+  @fields:
+    name: { default: "" }
+
+class Book extends Resource
+  @urlEndpoint: '/api/v1/books/'
+  @fields:
+    title: { default: "" }
+    author:
+      type: Resource.Reference
+      model: Author
+      default: null
+    tags:
+      type: Resource.ManyToMany
+      model: Tag
+      default: []
+
+books = Book.All()
+books.$promise.then ->
+  for book in books
+    $log.info "#{book.title} author: #{book.author.name}"
+    for tag in book.tags
+      $log.info "  tagged #{tag.name}"
+```
+
+## Get help
+
+If you need assistance, please open a ticket on the [GitHub issues page][issues].
+
+## How to help
+
+We need you!
+
+Documentation and examples would need some love, so if you want to help,
+please head to GitHub issues [#1][issue-1] and [#2][issue-1] and ask
+how you could contribute.
+
+## Alternatives
+
+If Angular REST ORM is not your cup of tea, there are other alternatives:
+
+* **$resource**: perhaps the most known REST interface for AngularJS, albeit 
+* **Restmod**: a very good and complete library, similar in spirit to Angular REST ORM but with a different flavour.
+* **Restangular**: another popular choice, but without a succulent model abstraction.
+
+We've got some inspiration from all of these, trying to summarize the best parts of each into a unique, coherent API.
+
+## License
+
+This software is licensed under the terms of the [MIT license](LICENSE.md).
+
+[repo]: https://github.com/panta/angular-rest-orm
+[issues]: https://github.com/panta/angular-rest-orm/issues
+[issue-1]: https://github.com/panta/angular-rest-orm/issues/1
+[issue-2]: https://github.com/panta/angular-rest-orm/issues/2
