@@ -122,6 +122,31 @@ module.exports = function (grunt) {
       }
     },
 
+    ngdocs: {
+      options: {
+        dest: 'tmp',
+        navTemplate: 'docs/html/nav.html',
+        html5Mode: false,
+        title: false,
+        // startPage: '/guide',
+        // scripts: [
+        //   '//code.angularjs.org/1.2.23/angular.min.js'
+        // ],
+        // styles: ['docs/css/styles.css']
+      },
+      api: {
+        src: [
+          'build/src/**/*.js',
+          'docs/content/api/*.ngdoc'
+        ],
+        title: 'API Reference'
+      }
+      // guide: {
+      //   src: ['docs/content/guide/*.ngdoc'],
+      //   title: 'Guide'
+      // }
+    },
+
     /**
      * The directories to delete when `grunt clean` is executed.
      */
@@ -425,6 +450,7 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-ng-annotate');
   grunt.loadNpmTasks('grunt-git');
+  grunt.loadNpmTasks('grunt-ngdocs');
 
   /**
    * In order to make it safe to just compile or copy *only* what was changed,
