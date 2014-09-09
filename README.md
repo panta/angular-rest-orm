@@ -186,6 +186,10 @@ books.$promise.then ->
       $log.info "  tagged #{tag.name}"
 ```
 
+## Reference documentation
+
+Please see the [API reference documentaion][API-docs].
+
 ## Get help
 
 If you need assistance, please open a ticket on the [GitHub issues page][issues].
@@ -216,3 +220,4 @@ This software is licensed under the terms of the [MIT license](LICENSE.md).
 [issues]: https://github.com/panta/angular-rest-orm/issues
 [issue-1]: https://github.com/panta/angular-rest-orm/issues/1
 [issue-2]: https://github.com/panta/angular-rest-orm/issues/2
+[API-docs]: http://panta.github.io/angular-rest-orm/
