@@ -127,7 +127,7 @@ module.exports = function (grunt) {
         dest: 'tmp',
         navTemplate: 'docs/html/nav.html',
         html5Mode: false,
-        title: false,
+        title: false
         // startPage: '/guide',
         // scripts: [
         //   '//code.angularjs.org/1.2.23/angular.min.js'
