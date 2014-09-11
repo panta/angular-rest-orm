@@ -148,13 +148,13 @@ describe "ORM basic functionality:", ->
       expect(book.$promiseDirect.then).toBeDefined()
       return
     it "uses correct REST endpoint", ->
+      $httpBackend.expect('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle", subtitle: "" })
       book = Book.Get(1)
-      $httpBackend.when('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle", subtitle: "" })
       $httpBackend.flush()
       return
     it "fulfills instance $promiseDirect", ->
+      $httpBackend.expect('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle", subtitle: "", author: null, tags: [] } )
       book = Book.Get(1)
-      $httpBackend.when('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle", subtitle: "", author: null, tags: [] } )
       $httpBackend.flush()
       handler = jasmine.createSpy('success')
       book.$promiseDirect.then handler
@@ -179,11 +179,13 @@ describe "ORM basic functionality:", ->
       expect(book.$id).toEqual(1)
       return
     it "returns instance with values from server", ->
+      $httpBackend.expect('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle" })
       book = Book.Get(1)
-      $httpBackend.when('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle" })
       $httpBackend.flush()
       book.$promise.then jasmine.createSpy('success')
       $rootScope.$digest()
+      expect(book.id).toBeDefined()
+      expect(book.id).toEqual(1)
       expect(book.title).toEqual("The Jungle")
       return
     it "returns instance with defaults where not provided by server", ->
@@ -344,20 +346,20 @@ describe "ORM basic functionality:", ->
       expect(result).toBe(book)
       return
     it "uses correct REST endpoint for fresh instance", ->
+      $httpBackend.expect('POST', '/api/v1/books/').respond(200, { id: 1, title: "The Jungle" })
       book = new Book({ title: "The Jungle" })
       book.$save()
-      $httpBackend.when('POST', '/api/v1/books/').respond(200, { id: 1, title: "The Jungle" })
       $httpBackend.flush()
       return
     it "uses correct REST endpoint for existing instance", ->
+      $httpBackend.expect('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle" })
       book = Book.Get(1)
-      $httpBackend.when('GET', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle" })
       $httpBackend.flush()
       book.$promise.then jasmine.createSpy('success')
       $rootScope.$digest()
+      $httpBackend.expect('PUT', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle 2.0" })
       book.title = "The Jungle 2.0"
       book.$save()
-      $httpBackend.when('PUT', '/api/v1/books/1').respond(200, { id: 1, title: "The Jungle 2.0" })
       $httpBackend.flush()
       return
     it "fulfills $promiseDirect for fresh instance", ->
@@ -457,12 +459,14 @@ describe "ORM basic functionality:", ->
       expect(book.$id).toEqual(1)
       return
     it "saves fresh instance", ->
+      $httpBackend.expect('POST', '/api/v1/books/').respond(200, { id: 1, title: "The Jungle" })
       book = new Book({ title: "The Jungle" })
       book.$save()
-      $httpBackend.when('POST', '/api/v1/books/').respond(200, { id: 1, title: "The Jungle" })
       $httpBackend.flush()
       book.$promise.then jasmine.createSpy('success')
       $rootScope.$digest()
+      expect(book.id).toBeDefined()
+      expect(book.id).toEqual(1)
       expect(book.title).toEqual("The Jungle")
       return
     it "saves changed values of existing instance", ->
