@@ -717,6 +717,20 @@ angular.module("restOrm", [
       @_fetchRelations()
       return @
 
+    _getFields: ->
+      fieldsSpec = {}
+
+      for name, value of @constructor.defaults
+        fieldsSpec[name] = { default: value }
+
+      # add the id field to class 'fields' property if not specified
+      if not (@constructor.idField of fieldsSpec)
+        fieldsSpec[@constructor.idField] = { default: null }
+
+      angular.extend fieldsSpec, @constructor.fields
+
+      fieldsSpec
+
     _getField: (name) ->
       def = {name: name, remote: name, type: null, model: null}
       if name of @constructor.fields
@@ -798,7 +812,9 @@ angular.module("restOrm", [
       else
         data = angular.extend({}, obj or {})
 
-        for name of @constructor.fields
+        fieldsSpec = @_getFields()
+
+        for name of fieldsSpec
           def = @_getField(name)
           if name in ['$id', '$meta', 'constructor', '__proto__']
             continue
