@@ -21,6 +21,15 @@ angular.module("restOrm", [
   startsWith = (s, sub) -> s.slice(0, sub.length) == sub
   endsWith   = (s, sub) -> sub == '' or s.slice(-sub.length) == sub
 
+  isKeyLike = (value) ->
+    if not value?
+      return false
+    if angular.isUndefined(value) or (value == null)
+      return false
+    if angular.isObject(value) or angular.isArray(value)
+      return false
+    return true
+
   # based on http://stackoverflow.com/a/2676231
   _urljoin = (components...) ->
     normalize = (str) ->
@@ -664,7 +673,7 @@ angular.module("restOrm", [
       _urljoin @constructor.urlPrefix, @constructor.urlEndpoint
 
     _fetchRelations: ->
-      if @$id
+      if @$id?
         @_fetchReferences()
         @_fetchM2M()
       @
@@ -672,7 +681,7 @@ angular.module("restOrm", [
     _fetchReferences: ->
       fetchReference = (instance, reference, promises) ->
         fieldName = reference.name
-        if (fieldName of instance) and instance[fieldName]
+        if (fieldName of instance) and instance[fieldName]? and isKeyLike(instance[fieldName])
           ref_id = instance[fieldName]
           record = reference.model.Get(ref_id)
           instance[fieldName] = record
@@ -689,7 +698,7 @@ angular.module("restOrm", [
     _fetchM2M: ->
       fetchM2M = (instance, m2m, promises) ->
         fieldName = m2m.name
-        if (fieldName of instance) and instance[fieldName]
+        if (fieldName of instance) and instance[fieldName]? and isKeyLike(instance[fieldName])
           refs_promises = []
           refs_collection = m2m.model._MakeCollection()
           for ref_id in instance[fieldName]
