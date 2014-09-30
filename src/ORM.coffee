@@ -698,7 +698,7 @@ angular.module("restOrm", [
     _fetchM2M: ->
       fetchM2M = (instance, m2m, promises, collections) ->
         fieldName = m2m.name
-        if (fieldName of instance) and instance[fieldName]? and isKeyLike(instance[fieldName])
+        if (fieldName of instance) and instance[fieldName]? and angular.isArray(instance[fieldName])
           refs_promises = []
           refs_collection = m2m.model._MakeCollection()
           for ref_id in instance[fieldName]
