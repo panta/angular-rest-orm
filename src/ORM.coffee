@@ -696,7 +696,7 @@ angular.module("restOrm", [
       @
 
     _fetchM2M: ->
-      fetchM2M = (instance, m2m, promises) ->
+      fetchM2M = (instance, m2m, promises, collections) ->
         fieldName = m2m.name
         if (fieldName of instance) and instance[fieldName]? and isKeyLike(instance[fieldName])
           refs_promises = []
@@ -707,16 +707,19 @@ angular.module("restOrm", [
             refs_promises.push record.$promise
           instance[fieldName] = refs_collection
           promises.push refs_collection.$promise
-          refs_collection.$finalize()
+          collections.push refs_collection
         else
           instance[fieldName] = []
       promises = []
+      collections = []
       for name of @constructor.fields
         def = @_getField(name)
         if def.type is @constructor.ManyToMany
-          fetchM2M(@, def, promises)
+          fetchM2M(@, def, promises, collections)
       $q.all(promises).then =>
         @$meta.async.m2m.deferred.resolve(@)
+      for refs_collection in collections
+        refs_collection.$finalize()
       @
 
     _fromRemote: (data) ->
