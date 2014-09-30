@@ -1,5 +1,5 @@
 angular.module("restOrm", [
-]).factory("Resource", ($http, $q) ->
+]).factory("Resource", ($http, $q, $rootScope) ->
 
   # based on http://stackoverflow.com/a/4994244
   isEmpty = (obj) ->
@@ -537,6 +537,7 @@ angular.module("restOrm", [
 
     @_MakeCollection: ->
       collection = []
+      collection.$useApplyAsync = false
       collection.$meta =
         model: @
         async:
@@ -556,11 +557,26 @@ angular.module("restOrm", [
         $q.all collection.$getItemsPromises()
       collection.$_getPromiseDirectForItems = ->
         $q.all collection.$getItemsPromiseDirects()
+      collection._resolvePromise = (deferred, success=true) ->
+        if success
+          return deferred.resolve(collection)
+        return deferred.reject(collection)
+      collection.resolvePromise = (deferred, success=true) ->
+        if collection.$useApplyAsync
+          $rootScope.$applyAsync ->
+            collection._resolvePromise(deferred, success)
+        else
+          collection._resolvePromise(deferred, success)
+          if not $rootScope.$$phase
+            $rootScope.$apply()
+        collection
       collection.$finalize = ->
         collection.$_getPromiseForItems().then ->
-          collection.$meta.async.complete.deferred.resolve(collection)
+          #collection.$meta.async.complete.deferred.resolve(collection)
+          collection.resolvePromise(collection.$meta.async.complete.deferred)
           collection.$meta.async.complete.resolved = true
-        collection.$meta.async.direct.deferred.resolve(collection)
+        #collection.$meta.async.direct.deferred.resolve(collection)
+        collection.resolvePromise(collection.$meta.async.direct.deferred)
         collection.$meta.async.direct.resolved = true
         collection
       collection
@@ -692,7 +708,8 @@ angular.module("restOrm", [
         if def.type is @constructor.Reference
           fetchReference(@, def, promises)
       $q.all(promises).then =>
-        @$meta.async.m2o.deferred.resolve(@)
+        #@$meta.async.m2o.deferred.resolve(@)
+        @resolvePromise(@$meta.async.m2o.deferred)
       @
 
     _fetchM2M: ->
@@ -717,7 +734,8 @@ angular.module("restOrm", [
         if def.type is @constructor.ManyToMany
           fetchM2M(@, def, promises, collections)
       $q.all(promises).then =>
-        @$meta.async.m2m.deferred.resolve(@)
+        #@$meta.async.m2m.deferred.resolve(@)
+        @resolvePromise(@$meta.async.m2m.deferred)
       for refs_collection in collections
         refs_collection.$finalize()
       @
@@ -725,9 +743,25 @@ angular.module("restOrm", [
     _fromRemote: (data) ->
       @_fromRemoteObject(data)
       @$meta.persisted = true
-      @$meta.async.direct.deferred.resolve(@)
+      #@$meta.async.direct.deferred.resolve(@)
+      @resolvePromise(@$meta.async.direct.deferred)
       @_fetchRelations()
       return @
+
+    _resolvePromise: (deferred, success=true) ->
+      if success
+        return deferred.resolve(@)
+      return deferred.reject(@)
+
+    resolvePromise: (deferred, success=true) ->
+      if @$useApplyAsync
+        $rootScope.$applyAsync =>
+          @_resolvePromise(deferred, success)
+      else
+        @_resolvePromise(deferred, success)
+        if not $rootScope.$$phase
+          $rootScope.$apply()
+      @
 
     _getFields: ->
       fieldsSpec = {}
