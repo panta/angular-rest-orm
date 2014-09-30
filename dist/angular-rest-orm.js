@@ -1,6 +1,6 @@
 /**
  * Angular ORM for HTTP REST APIs
- * @version angular-rest-orm - v0.4.1 - 2014-09-11
+ * @version angular-rest-orm - v0.4.2 - 2014-09-30
  * @link https://github.com/panta/angular-rest-orm
  * @author Marco Pantaleoni <marco.pantaleoni@gmail.com>
  *
@@ -11,8 +11,8 @@ var __hasProp = {}.hasOwnProperty,
   __slice = [].slice,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http, $q) {
-  var Resource, endsWith, isEmpty, startsWith, urljoin, _urljoin;
+angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', function($http, $q, $rootScope) {
+  var Resource, endsWith, isEmpty, isKeyLike, startsWith, urljoin, _urljoin;
   isEmpty = function(obj) {
     var key;
     if (obj == null) {
@@ -35,6 +35,18 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
   };
   endsWith = function(s, sub) {
     return sub === '' || s.slice(-sub.length) === sub;
+  };
+  isKeyLike = function(value) {
+    if (value == null) {
+      return false;
+    }
+    if (angular.isUndefined(value) || (value === null)) {
+      return false;
+    }
+    if (angular.isObject(value) || angular.isArray(value)) {
+      return false;
+    }
+    return true;
   };
   _urljoin = function() {
     var c_url, component, components, i, last_comp, normalize, r, skip, url_result, _i, _j, _len, _ref;
@@ -683,6 +695,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
     Resource._MakeCollection = function() {
       var collection;
       collection = [];
+      collection.$useApplyAsync = false;
       collection.$meta = {
         model: this,
         async: {
@@ -722,12 +735,37 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
       collection.$_getPromiseDirectForItems = function() {
         return $q.all(collection.$getItemsPromiseDirects());
       };
+      collection._resolvePromise = function(deferred, success) {
+        if (success == null) {
+          success = true;
+        }
+        if (success) {
+          return deferred.resolve(collection);
+        }
+        return deferred.reject(collection);
+      };
+      collection.resolvePromise = function(deferred, success) {
+        if (success == null) {
+          success = true;
+        }
+        if (collection.$useApplyAsync) {
+          $rootScope.$applyAsync(function() {
+            return collection._resolvePromise(deferred, success);
+          });
+        } else {
+          collection._resolvePromise(deferred, success);
+          if (!$rootScope.$$phase) {
+            $rootScope.$apply();
+          }
+        }
+        return collection;
+      };
       collection.$finalize = function() {
         collection.$_getPromiseForItems().then(function() {
-          collection.$meta.async.complete.deferred.resolve(collection);
+          collection.resolvePromise(collection.$meta.async.complete.deferred);
           return collection.$meta.async.complete.resolved = true;
         });
-        collection.$meta.async.direct.deferred.resolve(collection);
+        collection.resolvePromise(collection.$meta.async.direct.deferred);
         collection.$meta.async.direct.resolved = true;
         return collection;
       };
@@ -886,7 +924,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
     };
 
     Resource.prototype._fetchRelations = function() {
-      if (this.$id) {
+      if (this.$id != null) {
         this._fetchReferences();
         this._fetchM2M();
       }
@@ -898,7 +936,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
       fetchReference = function(instance, reference, promises) {
         var fieldName, record, ref_id;
         fieldName = reference.name;
-        if ((fieldName in instance) && instance[fieldName]) {
+        if ((fieldName in instance) && (instance[fieldName] != null) && isKeyLike(instance[fieldName])) {
           ref_id = instance[fieldName];
           record = reference.model.Get(ref_id);
           instance[fieldName] = record;
@@ -914,18 +952,18 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
       }
       $q.all(promises).then((function(_this) {
         return function() {
-          return _this.$meta.async.m2o.deferred.resolve(_this);
+          return _this.resolvePromise(_this.$meta.async.m2o.deferred);
         };
       })(this));
       return this;
     };
 
     Resource.prototype._fetchM2M = function() {
-      var def, fetchM2M, name, promises;
-      fetchM2M = function(instance, m2m, promises) {
+      var collections, def, fetchM2M, name, promises, refs_collection, _i, _len;
+      fetchM2M = function(instance, m2m, promises, collections) {
         var fieldName, record, ref_id, refs_collection, refs_promises, _i, _len, _ref;
         fieldName = m2m.name;
-        if ((fieldName in instance) && instance[fieldName]) {
+        if ((fieldName in instance) && (instance[fieldName] != null) && angular.isArray(instance[fieldName])) {
           refs_promises = [];
           refs_collection = m2m.model._MakeCollection();
           _ref = instance[fieldName];
@@ -937,31 +975,65 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', function($http
           }
           instance[fieldName] = refs_collection;
           promises.push(refs_collection.$promise);
-          return refs_collection.$finalize();
+          return collections.push(refs_collection);
         } else {
           return instance[fieldName] = [];
         }
       };
       promises = [];
+      collections = [];
       for (name in this.constructor.fields) {
         def = this._getField(name);
         if (def.type === this.constructor.ManyToMany) {
-          fetchM2M(this, def, promises);
+          fetchM2M(this, def, promises, collections);
         }
       }
       $q.all(promises).then((function(_this) {
         return function() {
-          return _this.$meta.async.m2m.deferred.resolve(_this);
+          return _this.resolvePromise(_this.$meta.async.m2m.deferred);
         };
       })(this));
+      for (_i = 0, _len = collections.length; _i < _len; _i++) {
+        refs_collection = collections[_i];
+        refs_collection.$finalize();
+      }
       return this;
     };
 
     Resource.prototype._fromRemote = function(data) {
       this._fromRemoteObject(data);
       this.$meta.persisted = true;
-      this.$meta.async.direct.deferred.resolve(this);
+      this.resolvePromise(this.$meta.async.direct.deferred);
       this._fetchRelations();
+      return this;
+    };
+
+    Resource.prototype._resolvePromise = function(deferred, success) {
+      if (success == null) {
+        success = true;
+      }
+      if (success) {
+        return deferred.resolve(this);
+      }
+      return deferred.reject(this);
+    };
+
+    Resource.prototype.resolvePromise = function(deferred, success) {
+      if (success == null) {
+        success = true;
+      }
+      if (this.$useApplyAsync) {
+        $rootScope.$applyAsync((function(_this) {
+          return function() {
+            return _this._resolvePromise(deferred, success);
+          };
+        })(this));
+      } else {
+        this._resolvePromise(deferred, success);
+        if (!$rootScope.$$phase) {
+          $rootScope.$apply();
+        }
+      }
       return this;
     };
 
