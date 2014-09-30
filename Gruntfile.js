@@ -404,7 +404,7 @@ module.exports = function (grunt) {
           '<%= src_files.coffee %>'
         ],
         tasks: [ 'coffeelint:src', 'coffee:source', 'karma:unit:run', 'copy:build' ]
-      },
+      }
 
       /**
        * When a JavaScript unit test file changes, we only want to lint it and
