@@ -21,17 +21,17 @@ describe "response transform:", ->
         @defaults:
           title: ""
           subtitle: ""
-        @transformResponse: (data, info) ->
-          if info.what == 'All'
+        @transformResponse: (res) ->
+          if res.what == 'All'
             newData = []
-            for k, v of data
+            for k, v of res.data
               newData.push v
-            return { data: newData }
-          else if info.what == 'Get'
-            return { data: data[0] }
-          else if info.what == '$save'
-            return { data: data[0] }
-          return info.response
+            res.data = newData
+          else if res.what == 'Get'
+            res.data = res.data[0]
+          else if res.what == '$save'
+            res.data = res.data[0]
+          return res
 
     it "should work for .All()", ->
       collection = Book.All()

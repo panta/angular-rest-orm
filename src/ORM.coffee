@@ -225,7 +225,9 @@ angular.module("restOrm", [
 
     @headers: {}
 
+    @prepareRequest: null
     @transformResponse: null
+    @postResponse: null
 
     @Reference: 'reference'       # many-to-one
     @ManyToMany: 'many2many'      # many-to-many
@@ -384,17 +386,27 @@ angular.module("restOrm", [
       item = new @()
       url = urljoin @_GetURLBase(), id
       item._setupPromises()
-      $http(
-        method: "GET"
+      req = @_PrepareRequest {
+        id: id
+        opts: opts
+        what: 'Get'
+        method: 'GET'
         url: url
         headers: @_BuildHeaders 'Get', 'GET', null
         params: opts.params or {}
         data: opts.data or {}
+        item: item
+      }
+      $http(
+        method: req.method
+        url: req.url
+        headers: req.headers
+        params: req.params
+        data: req.data
       ).then (response) =>
-        response = @_TransformResponse response.data, {
-          what: 'Get', method: 'GET', url: url, response: response
-        }
-        item._fromRemote(response.data)
+        res = @_TransformResponse req, response
+        item._fromRemote(res.data)
+        @_PostResponse res
       item
 
     ###*
@@ -438,34 +450,59 @@ angular.module("restOrm", [
     @All: (opts={}) ->
       collection = @_MakeCollection()
       url = urljoin @_GetURLBase()
-      $http(
-        method: "GET"
+      req = @_PrepareRequest {
+        opts: opts
+        what: 'All'
+        method: 'GET'
         url: url
         headers: @_BuildHeaders 'All', 'GET', null
         params: opts.params or {}
         data: opts.data or {}
+        collection: collection
+      }
+      $http(
+        method: req.method
+        url: req.url
+        headers: req.headers
+        params: req.params
+        data: req.data
       ).then (response) =>
-        response = @_TransformResponse response.data, {
-          what: 'All', method: 'GET', url: url, response: response
-        }
-        for values in response.data
+        res = @_TransformResponse req, response
+        for values in res.data
           collection.push @_MakeInstanceFromRemote(values)
+        @_PostResponse res
         collection.$finalize()
       collection
 
     @Search: (field, value, opts={}) ->
-      url = urljoin @GetUrlBase(), "search", field, value
-      $http(
-        method: "GET"
+      collection = @_MakeCollection()
+      url = urljoin @_GetURLBase(), "search", field, value
+      req = @_PrepareRequest {
+        field: field
+        value: value
+        opts: opts
+        what: 'Search'
+        method: 'GET'
         url: url
         headers: @_BuildHeaders 'Search', 'GET', null
         params: opts.params or {}
         data: opts.data or {}
+        collection: collection
+      }
+      $http(
+        method: req.method
+        url: req.url
+        headers: req.headers
+        params: req.params
+        data: req.data
       ).then (response) =>
-        response = @_TransformResponse response.data, {
-          what: 'Search', method: 'GET', url: url, response: response
-        }
-        @_MakeInstanceFromRemote(values) for values in response.data
+        res = @_TransformResponse req, response
+        for values in res.data
+          collection.push @_MakeInstanceFromRemote(values)
+        @_PostResponse res
+        # @_MakeInstanceFromRemote(values) for values in response.data
+        collection.$finalize()
+      collection
 
     ###*
      # @ngdoc method
@@ -516,19 +553,29 @@ angular.module("restOrm", [
       # TODO: check deferred/promise re-setup
       @_setupPromises()
 
-      headers = @_buildHeaders '$save', method
-      $http(
+      req = @_prepareRequest {
+        opts: opts
+        what: '$save'
         method: method
         url: url
+        headers: @_buildHeaders '$save', method
+        params: opts.params or {}
         data: data
         cache: false
-        headers: headers
-        params: opts.params or {}
+        item: @
+      }
+
+      $http(
+        method: req.method
+        url: req.url
+        data: req.data
+        cache: req.cache
+        headers: req.headers
+        params: req.params
       ).then (response) =>
-        response = @_transformResponse response.data, {
-          what: '$save', method: method, url: url, response: response
-        }
-        @_fromRemote(response.data)
+        res = @_transformResponse req, response
+        @_fromRemote(res.data)
+        @_postResponse res
       @
 
     # -----------------------------------------------------------------
@@ -619,15 +666,43 @@ angular.module("restOrm", [
         return dst_headers
       return {}
 
-    @_TransformResponse: (data, info) ->
-      info.klass = @
-      if @transformResponse? and angular.isFunction(@transformResponse)
-        return @transformResponse.call(@, data, info)
-      return info.response
+    @_PrepareRequest: (req) ->
+      req.klass = @
+      if @prepareRequest? and angular.isFunction(@prepareRequest)
+        return @prepareRequest.call(@, req)
+      return req
 
-    _transformResponse: (data, info) ->
-      info.instance = @
-      @constructor._TransformResponse data, info
+    _prepareRequest: (req) ->
+      req.instance = @
+      @constructor._PrepareRequest req
+
+    @_TransformResponse: (req, http_response, instance=null) ->
+      res = angular.extend {}, req, {
+        request: req, response: http_response, data: http_response.data
+      }
+      res.klass = @
+      res.instance = instance
+      res.data = res.response.data
+      res.status = res.response.status
+      res.headers = res.response.headers
+      res.config = res.response.config
+      res.statusText = res.response.statusText
+      if @transformResponse? and angular.isFunction(@transformResponse)
+        return @transformResponse.call(@, res)
+      return res
+
+    _transformResponse: (req, http_response) ->
+      @constructor._TransformResponse req, http_response, @
+
+    @_PostResponse: (res) ->
+      res.klass = @
+      if @postResponse? and angular.isFunction(@postResponse)
+        return @postResponse.call(@, res)
+      return res
+
+    _postResponse: (res) ->
+      res.instance = @
+      @constructor._PostResponse res
 
     _buildHeaders: (what=null, method=null) ->
       @constructor._BuildHeaders what, method, @
