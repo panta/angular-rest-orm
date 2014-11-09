@@ -1,6 +1,6 @@
 /**
  * Angular ORM for HTTP REST APIs
- * @version angular-rest-orm - v0.4.2 - 2014-09-30
+ * @version angular-rest-orm - v0.4.3 - 2014-11-09
  * @link https://github.com/panta/angular-rest-orm
  * @author Marco Pantaleoni <marco.pantaleoni@gmail.com>
  *
@@ -265,7 +265,11 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
 
     Resource.headers = {};
 
+    Resource.prepareRequest = null;
+
     Resource.transformResponse = null;
+
+    Resource.postResponse = null;
 
     Resource.Reference = 'reference';
 
@@ -484,28 +488,36 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
      */
 
     Resource.Get = function(id, opts) {
-      var item, url;
+      var item, req, url;
       if (opts == null) {
         opts = {};
       }
       item = new this();
       url = urljoin(this._GetURLBase(), id);
       item._setupPromises();
-      $http({
-        method: "GET",
+      req = this._PrepareRequest({
+        id: id,
+        opts: opts,
+        what: 'Get',
+        method: 'GET',
         url: url,
         headers: this._BuildHeaders('Get', 'GET', null),
         params: opts.params || {},
-        data: opts.data || {}
+        data: opts.data || {},
+        item: item
+      });
+      $http({
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        params: req.params,
+        data: req.data
       }).then((function(_this) {
         return function(response) {
-          response = _this._TransformResponse(response.data, {
-            what: 'Get',
-            method: 'GET',
-            url: url,
-            response: response
-          });
-          return item._fromRemote(response.data);
+          var res;
+          res = _this._TransformResponse(req, response);
+          item._fromRemote(res.data);
+          return _this._PostResponse(res);
         };
       })(this));
       return item;
@@ -552,32 +564,38 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
      */
 
     Resource.All = function(opts) {
-      var collection, url;
+      var collection, req, url;
       if (opts == null) {
         opts = {};
       }
       collection = this._MakeCollection();
       url = urljoin(this._GetURLBase());
-      $http({
-        method: "GET",
+      req = this._PrepareRequest({
+        opts: opts,
+        what: 'All',
+        method: 'GET',
         url: url,
         headers: this._BuildHeaders('All', 'GET', null),
         params: opts.params || {},
-        data: opts.data || {}
+        data: opts.data || {},
+        collection: collection
+      });
+      $http({
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        params: req.params,
+        data: req.data
       }).then((function(_this) {
         return function(response) {
-          var values, _i, _len, _ref;
-          response = _this._TransformResponse(response.data, {
-            what: 'All',
-            method: 'GET',
-            url: url,
-            response: response
-          });
-          _ref = response.data;
+          var res, values, _i, _len, _ref;
+          res = _this._TransformResponse(req, response);
+          _ref = res.data;
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             values = _ref[_i];
             collection.push(_this._MakeInstanceFromRemote(values));
           }
+          _this._PostResponse(res);
           return collection.$finalize();
         };
       })(this));
@@ -585,35 +603,44 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
     };
 
     Resource.Search = function(field, value, opts) {
-      var url;
+      var collection, req, url;
       if (opts == null) {
         opts = {};
       }
-      url = urljoin(this.GetUrlBase(), "search", field, value);
-      return $http({
-        method: "GET",
+      collection = this._MakeCollection();
+      url = urljoin(this._GetURLBase(), "search", field, value);
+      req = this._PrepareRequest({
+        field: field,
+        value: value,
+        opts: opts,
+        what: 'Search',
+        method: 'GET',
         url: url,
         headers: this._BuildHeaders('Search', 'GET', null),
         params: opts.params || {},
-        data: opts.data || {}
+        data: opts.data || {},
+        collection: collection
+      });
+      $http({
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        params: req.params,
+        data: req.data
       }).then((function(_this) {
         return function(response) {
-          var values, _i, _len, _ref, _results;
-          response = _this._TransformResponse(response.data, {
-            what: 'Search',
-            method: 'GET',
-            url: url,
-            response: response
-          });
-          _ref = response.data;
-          _results = [];
+          var res, values, _i, _len, _ref;
+          res = _this._TransformResponse(req, response);
+          _ref = res.data;
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             values = _ref[_i];
-            _results.push(_this._MakeInstanceFromRemote(values));
+            collection.push(_this._MakeInstanceFromRemote(values));
           }
-          return _results;
+          _this._PostResponse(res);
+          return collection.$finalize();
         };
       })(this));
+      return collection;
     };
 
 
@@ -654,7 +681,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
      */
 
     Resource.prototype.$save = function(opts) {
-      var data, headers, method, url;
+      var data, method, req, url;
       if (opts == null) {
         opts = {};
       }
@@ -670,23 +697,30 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
         url = urljoin(this._getURLBase());
       }
       this._setupPromises();
-      headers = this._buildHeaders('$save', method);
-      $http({
+      req = this._prepareRequest({
+        opts: opts,
+        what: '$save',
         method: method,
         url: url,
+        headers: this._buildHeaders('$save', method),
+        params: opts.params || {},
         data: data,
         cache: false,
-        headers: headers,
-        params: opts.params || {}
+        item: this
+      });
+      $http({
+        method: req.method,
+        url: req.url,
+        data: req.data,
+        cache: req.cache,
+        headers: req.headers,
+        params: req.params
       }).then((function(_this) {
         return function(response) {
-          response = _this._transformResponse(response.data, {
-            what: '$save',
-            method: method,
-            url: url,
-            response: response
-          });
-          return _this._fromRemote(response.data);
+          var res;
+          res = _this._transformResponse(req, response);
+          _this._fromRemote(res.data);
+          return _this._postResponse(res);
         };
       })(this));
       return this;
@@ -847,17 +881,57 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
       return {};
     };
 
-    Resource._TransformResponse = function(data, info) {
-      info.klass = this;
-      if ((this.transformResponse != null) && angular.isFunction(this.transformResponse)) {
-        return this.transformResponse.call(this, data, info);
+    Resource._PrepareRequest = function(req) {
+      req.klass = this;
+      if ((this.prepareRequest != null) && angular.isFunction(this.prepareRequest)) {
+        return this.prepareRequest.call(this, req);
       }
-      return info.response;
+      return req;
     };
 
-    Resource.prototype._transformResponse = function(data, info) {
-      info.instance = this;
-      return this.constructor._TransformResponse(data, info);
+    Resource.prototype._prepareRequest = function(req) {
+      req.instance = this;
+      return this.constructor._PrepareRequest(req);
+    };
+
+    Resource._TransformResponse = function(req, http_response, instance) {
+      var res;
+      if (instance == null) {
+        instance = null;
+      }
+      res = angular.extend({}, req, {
+        request: req,
+        response: http_response,
+        data: http_response.data
+      });
+      res.klass = this;
+      res.instance = instance;
+      res.data = res.response.data;
+      res.status = res.response.status;
+      res.headers = res.response.headers;
+      res.config = res.response.config;
+      res.statusText = res.response.statusText;
+      if ((this.transformResponse != null) && angular.isFunction(this.transformResponse)) {
+        return this.transformResponse.call(this, res);
+      }
+      return res;
+    };
+
+    Resource.prototype._transformResponse = function(req, http_response) {
+      return this.constructor._TransformResponse(req, http_response, this);
+    };
+
+    Resource._PostResponse = function(res) {
+      res.klass = this;
+      if ((this.postResponse != null) && angular.isFunction(this.postResponse)) {
+        return this.postResponse.call(this, res);
+      }
+      return res;
+    };
+
+    Resource.prototype._postResponse = function(res) {
+      res.instance = this;
+      return this.constructor._PostResponse(res);
     };
 
     Resource.prototype._buildHeaders = function(what, method) {
