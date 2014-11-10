@@ -466,12 +466,16 @@ angular.module("restOrm", [
         headers: req.headers
         params: req.params
         data: req.data
-      ).then (response) =>
+      ).then ((response) =>
         res = @_TransformResponse req, response
         for values in res.data
           collection.push @_MakeInstanceFromRemote(values)
         @_PostResponse res
         collection.$finalize()
+      ), (response) =>
+        res = @_TransformResponse req, response
+        @_PostResponse res
+        collection.$finalize(false)
       collection
 
     @Search: (field, value, opts={}) ->
@@ -495,13 +499,17 @@ angular.module("restOrm", [
         headers: req.headers
         params: req.params
         data: req.data
-      ).then (response) =>
+      ).then ((response) =>
         res = @_TransformResponse req, response
         for values in res.data
           collection.push @_MakeInstanceFromRemote(values)
         @_PostResponse res
         # @_MakeInstanceFromRemote(values) for values in response.data
         collection.$finalize()
+      ), (response) =>
+        res = @_TransformResponse req, response
+        @_PostResponse res
+        collection.$finalize( false)
       collection
 
     ###*
@@ -594,6 +602,7 @@ angular.module("restOrm", [
           complete:
             deferred: $q.defer()
             resolved: false
+      collection.$error = false
       collection.$promise = collection.$meta.async.complete.deferred.promise
       collection.$promiseDirect = collection.$meta.async.direct.deferred.promise
       collection.$getItemsPromises = ->
@@ -617,14 +626,22 @@ angular.module("restOrm", [
           if not $rootScope.$$phase
             $rootScope.$apply()
         collection
-      collection.$finalize = ->
-        collection.$_getPromiseForItems().then ->
+      collection.$finalize = (success=true) ->
+        items_success = success
+        collection.$_getPromiseForItems().then ( ->
           #collection.$meta.async.complete.deferred.resolve(collection)
-          collection.resolvePromise(collection.$meta.async.complete.deferred)
+          collection.resolvePromise(collection.$meta.async.complete.deferred, success)
           collection.$meta.async.complete.resolved = true
+        ), ->
+          items_success = false
+          #collection.$meta.async.complete.deferred.reject(collection)
+          collection.resolvePromise(collection.$meta.async.complete.deferred, items_success)
+          collection.$meta.async.complete.resolved = true
+          collection.$error = true
         #collection.$meta.async.direct.deferred.resolve(collection)
-        collection.resolvePromise(collection.$meta.async.direct.deferred)
+        collection.resolvePromise(collection.$meta.async.direct.deferred, success)
         collection.$meta.async.direct.resolved = true
+        collection.$error = (not (success and items_success))
         collection
       collection
 
@@ -782,9 +799,11 @@ angular.module("restOrm", [
         def = @_getField(name)
         if def.type is @constructor.Reference
           fetchReference(@, def, promises)
-      $q.all(promises).then =>
+      $q.all(promises).then ( =>
         #@$meta.async.m2o.deferred.resolve(@)
         @resolvePromise(@$meta.async.m2o.deferred)
+      ), =>
+        @resolvePromise(@$meta.async.m2o.deferred, false)
       @
 
     _fetchM2M: ->
@@ -808,9 +827,11 @@ angular.module("restOrm", [
         def = @_getField(name)
         if def.type is @constructor.ManyToMany
           fetchM2M(@, def, promises, collections)
-      $q.all(promises).then =>
+      $q.all(promises).then ( =>
         #@$meta.async.m2m.deferred.resolve(@)
         @resolvePromise(@$meta.async.m2m.deferred)
+      ) , =>
+        @resolvePromise(@$meta.async.m2m.deferred, false)
       for refs_collection in collections
         refs_collection.$finalize()
       @
