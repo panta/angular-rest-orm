@@ -1,6 +1,6 @@
 /**
  * Angular ORM for HTTP REST APIs
- * @version angular-rest-orm - v0.4.3 - 2014-11-09
+ * @version angular-rest-orm - v0.4.4 - 2014-11-10
  * @link https://github.com/panta/angular-rest-orm
  * @author Marco Pantaleoni <marco.pantaleoni@gmail.com>
  *
@@ -586,7 +586,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
         headers: req.headers,
         params: req.params,
         data: req.data
-      }).then((function(_this) {
+      }).then(((function(_this) {
         return function(response) {
           var res, values, _i, _len, _ref;
           res = _this._TransformResponse(req, response);
@@ -597,6 +597,13 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
           }
           _this._PostResponse(res);
           return collection.$finalize();
+        };
+      })(this)), (function(_this) {
+        return function(response) {
+          var res;
+          res = _this._TransformResponse(req, response);
+          _this._PostResponse(res);
+          return collection.$finalize(false);
         };
       })(this));
       return collection;
@@ -627,7 +634,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
         headers: req.headers,
         params: req.params,
         data: req.data
-      }).then((function(_this) {
+      }).then(((function(_this) {
         return function(response) {
           var res, values, _i, _len, _ref;
           res = _this._TransformResponse(req, response);
@@ -638,6 +645,13 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
           }
           _this._PostResponse(res);
           return collection.$finalize();
+        };
+      })(this)), (function(_this) {
+        return function(response) {
+          var res;
+          res = _this._TransformResponse(req, response);
+          _this._PostResponse(res);
+          return collection.$finalize(false);
         };
       })(this));
       return collection;
@@ -743,6 +757,7 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
           }
         }
       };
+      collection.$error = false;
       collection.$promise = collection.$meta.async.complete.deferred.promise;
       collection.$promiseDirect = collection.$meta.async.direct.deferred.promise;
       collection.$getItemsPromises = function() {
@@ -794,13 +809,24 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
         }
         return collection;
       };
-      collection.$finalize = function() {
-        collection.$_getPromiseForItems().then(function() {
-          collection.resolvePromise(collection.$meta.async.complete.deferred);
+      collection.$finalize = function(success) {
+        var items_success;
+        if (success == null) {
+          success = true;
+        }
+        items_success = success;
+        collection.$_getPromiseForItems().then((function() {
+          collection.resolvePromise(collection.$meta.async.complete.deferred, success);
           return collection.$meta.async.complete.resolved = true;
+        }), function() {
+          items_success = false;
+          collection.resolvePromise(collection.$meta.async.complete.deferred, items_success);
+          collection.$meta.async.complete.resolved = true;
+          return collection.$error = true;
         });
-        collection.resolvePromise(collection.$meta.async.direct.deferred);
+        collection.resolvePromise(collection.$meta.async.direct.deferred, success);
         collection.$meta.async.direct.resolved = true;
+        collection.$error = !(success && items_success);
         return collection;
       };
       return collection;
@@ -1024,9 +1050,13 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
           fetchReference(this, def, promises);
         }
       }
-      $q.all(promises).then((function(_this) {
+      $q.all(promises).then(((function(_this) {
         return function() {
           return _this.resolvePromise(_this.$meta.async.m2o.deferred);
+        };
+      })(this)), (function(_this) {
+        return function() {
+          return _this.resolvePromise(_this.$meta.async.m2o.deferred, false);
         };
       })(this));
       return this;
@@ -1062,9 +1092,13 @@ angular.module("restOrm", []).factory("Resource", ['$http', '$q', '$rootScope', 
           fetchM2M(this, def, promises, collections);
         }
       }
-      $q.all(promises).then((function(_this) {
+      $q.all(promises).then(((function(_this) {
         return function() {
           return _this.resolvePromise(_this.$meta.async.m2m.deferred);
+        };
+      })(this)), (function(_this) {
+        return function() {
+          return _this.resolvePromise(_this.$meta.async.m2m.deferred, false);
         };
       })(this));
       for (_i = 0, _len = collections.length; _i < _len; _i++) {
