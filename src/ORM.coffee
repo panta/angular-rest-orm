@@ -303,6 +303,7 @@ angular.module("restOrm", [
             deferred: null
             resolved: true          # signal we need to create it
       angular.extend(@$meta, opts)
+      @$error = null
 
       @$id = null
       @_fromObject(data or {})
@@ -403,10 +404,16 @@ angular.module("restOrm", [
         headers: req.headers
         params: req.params
         data: req.data
-      ).then (response) =>
+      ).then ((response) =>
         res = @_TransformResponse req, response
         item._fromRemote(res.data)
         @_PostResponse res
+      ), (response) ->
+        item.$error = response
+        item.resolvePromise(item.$meta.async.direct.deferred, false)
+        item.resolvePromise(item.$meta.async.m2o.deferred, false)
+        item.resolvePromise(item.$meta.async.m2m.deferred, false)
+
       item
 
     ###*
@@ -475,7 +482,7 @@ angular.module("restOrm", [
       ), (response) =>
         res = @_TransformResponse req, response
         @_PostResponse res
-        collection.$finalize(false)
+        collection.$finalize(false, response)
       collection
 
     @Search: (field, value, opts={}) ->
@@ -509,7 +516,7 @@ angular.module("restOrm", [
       ), (response) =>
         res = @_TransformResponse req, response
         @_PostResponse res
-        collection.$finalize( false)
+        collection.$finalize(false, response)
       collection
 
     ###*
@@ -580,10 +587,15 @@ angular.module("restOrm", [
         cache: req.cache
         headers: req.headers
         params: req.params
-      ).then (response) =>
+      ).then ((response) =>
         res = @_transformResponse req, response
         @_fromRemote(res.data)
         @_postResponse res
+      ), (response) =>
+        @$error = response
+        @resolvePromise(@$meta.async.direct.deferred, false)
+        @resolvePromise(@$meta.async.m2o.deferred, false)
+        @resolvePromise(@$meta.async.m2m.deferred, false)
       @
 
     # -----------------------------------------------------------------
@@ -626,7 +638,7 @@ angular.module("restOrm", [
           if not $rootScope.$$phase
             $rootScope.$apply()
         collection
-      collection.$finalize = (success=true) ->
+      collection.$finalize = (success=true, response=null) ->
         items_success = success
         collection.$_getPromiseForItems().then ( ->
           #collection.$meta.async.complete.deferred.resolve(collection)
@@ -641,7 +653,10 @@ angular.module("restOrm", [
         #collection.$meta.async.direct.deferred.resolve(collection)
         collection.resolvePromise(collection.$meta.async.direct.deferred, success)
         collection.$meta.async.direct.resolved = true
-        collection.$error = (not (success and items_success))
+        if (not success) and response
+          collection.$error = response
+        else
+          collection.$error = (not (success and items_success))
         collection
       collection
 
